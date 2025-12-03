@@ -1,0 +1,6 @@
+-include libraries/libcurl-7.76.1/Makefile.mk
+-include libraries/libdatachannel/Makefile.mk
+-include libraries/libopenssl-1.1.1h/Makefile.mk
+-include libraries/libmosquitto-2.0.22/Makefile.mk
+-include libraries/libral/Makefile.mk
+-include libraries/librtspd555/Makefile.mk

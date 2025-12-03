@@ -1,0 +1,9 @@
+{
+    "SerialNumber": "c05o24100000007",
+    "DefaultConfigurationPath": "/tmp/envir/default",
+    "VendorsConfigurationPath": "/tmp/envir/vendors",
+    "WiFi": {
+        "SSID": "IOT_LS_TP",
+        "PSSK": "1234567890"
+    }
+}

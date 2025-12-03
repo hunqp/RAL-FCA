@@ -1,0 +1,24 @@
+{
+   "Users" : [
+      {
+         "AuthorityList" : [
+            "Download",
+            "Livestream"
+         ],
+         "Name" : "admin",
+         "Password" : "fca@0102068",
+         "Reserved" : true,
+         "Shareable" : true
+      },
+        {
+         "AuthorityList" : [
+            "Download",
+            "Livestream"
+         ],
+         "Name" : "user",
+         "Password" : "user@1535368",
+         "Reserved" : true,
+         "Shareable" : true
+      }
+   ]
+}

@@ -1,0 +1,16 @@
+{
+  "Sensitive": 3,
+  "Interval": 90,
+  "Duration": 30,
+  "Enable": false,
+  "VideoAttribute": false,
+  "PictureAttribute": false,
+  "HumanDetectAttribute": false,
+  "GuardZoneAttribute": false,
+  "GuardZone": [],
+  "HumanFocus": false,
+  "HumanDraw": false,
+  "HumanSensitive": 1,
+  "SVPThreshold": 7,
+  "SVPMotionThreshold": 40
+}
