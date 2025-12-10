@@ -74,7 +74,7 @@ void *gw_task_network_entry(void *) {
 		static bool isFirstTime = true;
 		if (isFirstTime) {
 			isFirstTime = false;
-			ntpd.setTimePeriodicUpdate(3600000);
+			ntpd.setTimePeriodicUpdate(5000);
 			task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_INIT_REQ);
 			SYSI("Network time has updated: %s\r\n", datetime);
 		}
@@ -114,6 +114,7 @@ void *gw_task_network_entry(void *) {
 				bSelectedBLE = false;
 				task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTAPD);
 				#endif
+				task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTAPD);
 			}
 			else {
 				task_post_dynamic_msg(GW_TASK_NETWORK_ID, GW_NET_WIFI_DO_CONNECT, (uint8_t *)&wiFiSettings, sizeof(wiFiSettings));

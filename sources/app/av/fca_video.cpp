@@ -171,6 +171,8 @@ bool VideoHelpers::setOsd(FCA_OSD_S *osds) {
 	}
 
 	// TODO 
+	// fca_isp_set_osd_time(FCA_OSD_TOP_LEFT);
+	// fca_isp_set_osd_text(FCA_OSD_BOTTOM_LEFT, "AAAaaaa123345");
 
 	return true;
 }

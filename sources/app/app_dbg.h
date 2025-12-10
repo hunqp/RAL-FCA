@@ -7,11 +7,11 @@
 // #define APP_DBG_EN		  1
 // #define APP_PRINT_EN	  1
 // #define APP_ERR_EN		  0
-#define APP_DBG_SIG_EN	  1
+#define APP_DBG_SIG_EN	  0
 // #define APP_DBG_DRIVER_EN 0
 // #define APP_DBG_ISP_EN	  1
 // #define APP_DBG_RTC_EN	  1
-#define APP_DBG_NET_EN	  1
+#define APP_DBG_NET_EN	  0
 // #define APP_DBG_MQTT_EN	  1
 // #define APP_DBG_MD_EN	  1
 // #define APP_DBG_CMD_EN	  1
@@ -171,7 +171,7 @@
 #define KCYN "\x1B[36m"
 #define KWHT "\x1B[37m"
 
-#define APP_DEBUG_EN	( 1 )
+#define APP_DEBUG_EN	( 0 )
 #define APP_WARNI_EN   	( 1 )
 #define APP_PRINT_EN    ( 1 )
 #define APP_ERROR_EN	( 1 )

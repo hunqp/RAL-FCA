@@ -30,20 +30,13 @@
 // Global variable to simulate bleMessage
 typedef struct
 {
-	fca_ble_data_buf_t adv;
-	fca_ble_data_buf_t scan;
-	fca_ble_data_buf_t notify;
-	fca_ble_data_buf_t read;
+    fca_ble_data_buf_t adv;
+    fca_ble_data_buf_t scan;
+    fca_ble_data_buf_t notify;
+    fca_ble_data_buf_t read;
 } TestBleMsg_t;
 
 TestBleMsg_t testBleMsg;
-
-// uint8_t testAdvData[] = {0x02, 0x01, 0x06,0x07, 0x09, 'F','C','-','P','0','4',0x11, 0x07, 0x00, 0x00, 0xFE, 0xE7, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB};
-// uint8_t testScanData[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-// uint8_t notifySuccessMsg[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'C', 'O', 'N', 'F', 'I', 'G', '_', 'O', 'K'};
-// uint8_t notifyFailMsg[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'C', 'O', 'N', 'F', 'I', 'G', '-', 'F', 'A', 'I', 'L'};
-// uint8_t testReadData[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'H', 'e', 'l', 'l', 'o'};
-
 
 uint8_t testAdvData[] = {0x02, 0x01, 0x06, 0x18, 0x09, 'F', 'C', '-', 'P', '0', '4', 'L', '-', 'C', '0', '5', 'I', '2', '4', '1', '0', '0', '0', '0', '0', '0', '0', '2'};
 uint8_t testScanData[] = {0x11, 0x07, 0x00, 0x00, 0xFE, 0xE7, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB};
@@ -51,18 +44,16 @@ uint8_t notifySuccessMsg[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x
 uint8_t notifyFailMsg[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'C', 'O', 'N', 'F', 'I', 'G', '-', 'F', 'A', 'I', 'L'};
 uint8_t testReadData[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'H', 'e', 'l', 'l', 'o'};
 
-
 // Test event callback function
 void test_ble_event_callback(FCA_BLE_EVT_CB ble_evt, fca_ble_data_buf_t *data)
 {
-	printf("[TEST] BLE Event: %d\n", ble_evt);
-	int ret = 0;
-	switch (ble_evt)
-	{
-	case FCA_BLE_INIT_DONE:
-	{
-        printf("FCA_BLE_INIT_DONE\r\n");
-		printf("[TEST] BLE initialization completed, starting to set device name...\n");
+    printf("[TEST] BLE Event: %d\n", ble_evt);
+    int ret = 0;
+    switch (ble_evt)
+    {
+    case FCA_BLE_INIT_DONE:
+    {
+        printf("[TEST] BLE initialization completed, starting to set device name...\n");
         // Set device name
         uint8_t devName[] = TEST_DEVICE_NAME;
         char ssidBle[32] = "FC-P04L-C05I24100000002";
@@ -96,180 +87,186 @@ void test_ble_event_callback(FCA_BLE_EVT_CB ble_evt, fca_ble_data_buf_t *data)
             return;
         }
         printf("[TEST] Advertising started successfully\n");
-	}
-	break;
+    }
+    break;
 
-	case FCA_BLE_ADV_ENABLE:
-	{
-        printf("FCA_BLE_ADV_ENABLE\r\n");
-		printf("[TEST] Advertising enabled, sending test notification...\n");
-	}
-	break;
+    case FCA_BLE_ADV_ENABLE:
+    {
+        printf("[TEST] Advertising enabled, sending test notification...\n");
+    }
+    break;
 
-	case FCA_BLE_SMARTCONFIG_DATA_RECV:
-	{
-        printf("FCA_BLE_SMARTCONFIG_DATA_RECV\r\n");
-		if (data && data->len > 0 && data->data)
+    case FCA_BLE_SMARTCONFIG_DATA_RECV:
+    {
+        if (data && data->len > 0 && data->data)
         {
             printf("[TEST] Received data (len=%d): ", data->len);
-            // for (int i = 0; i < data->len; i++)
-            // {
-            //     printf("%02X ", data->data[i]);
-            // }
-            // printf("\n");
+            for (int i = 0; i < data->len; i++)
+            {
+                printf("%02X ", data->data[i]);
+            }
+            printf("\n");
 
-            // // 1. conidx
-            // if (data->len < 1)
-            // {
-            //     printf("[TEST] Data too short for conidx\n");
-            //     break;
-            // }
-            // uint8_t conidx = data->data[0];
-            // printf("[TEST] conidx: 0x%02X\n", conidx);
+            // 1. conidx
+            if (data->len < 1)
+            {
+                printf("[TEST] Data too short for conidx\n");
+                break;
+            }
+            uint8_t conidx = data->data[0];
+            printf("[TEST] conidx: 0x%02X\n", conidx);
 
-            // // 2. uuid
-            // if (data->len < 1 + 16)
-            // {
-            //     printf("[TEST] Data too short for UUID\n");
-            //     break;
-            // }
-            // uint8_t uuid[16];
-            // memcpy(uuid, &data->data[1], 16);
-            // printf("[TEST] UUID: ");
-            // for (int i = 0; i < 16; i++)
-            // {
-            //     printf("%02X ", uuid[i]);
-            // }
-            // printf("\n");
+            // 2. uuid
+            if (data->len < 1 + 16)
+            {
+                printf("[TEST] Data too short for UUID\n");
+                break;
+            }
+            uint8_t uuid[16];
+            memcpy(uuid, &data->data[1], 16);
+            printf("[TEST] UUID: ");
+            for (int i = 0; i < 16; i++)
+            {
+                printf("%02X ", uuid[i]);
+            }
+            printf("\n");
 
-            // // 3. data
-            // uint16_t data_content_len = data->len - (1 + 16);
-            // if (data_content_len <= 0)
-            // {
-            //     printf("[TEST] No content data available\n");
-            //     break;
-            // }
-            // uint8_t tmp_data[32] = {0};
-            // uint16_t copy_len = (data_content_len < 32) ? data_content_len : 31;
-            // memcpy(tmp_data, &data->data[1 + 16], copy_len);
-            // printf("[TEST] Content data: %s\n", tmp_data);
+            // 3. data
+            uint16_t data_content_len = data->len - (1 + 16);
+            if (data_content_len <= 0)
+            {
+                printf("[TEST] No content data available\n");
+                break;
+            }
+            char tmp_data[32] = {0};
+            uint16_t copy_len = (data_content_len < 32) ? data_content_len : 31;
+            memcpy(tmp_data, &data->data[1 + 16], copy_len);
+            printf("[TEST] Content data: %s\n", tmp_data);
 
-            // if (strcmp(tmp_data, "aaa") == 0)
-            // {
-            //     fca_ble_data_buf_t notify_data = {
-            //         .data = notifySuccessMsg,
-            //         .len = sizeof(notifySuccessMsg)};
+            if (strcmp(tmp_data, "aaa") == 0)
+            {
+                fca_ble_data_buf_t notify_data = {
+                    .len = sizeof(notifySuccessMsg),
+                    .data = notifySuccessMsg};
 
-            //     if (fca_ble_gatts_value_notify(&notify_data) != 0)
-            //     {
-            //         printf("[TEST] Failed to send notification\n");
-            //     }
-            //     else
-            //     {
-            //         printf("[TEST] Notification sent successfully\n");
-            //     }
-            // }
-            // else
-            // {
-            //     fca_ble_data_buf_t notify_data = {
-            //         .data = notifyFailMsg,
-            //         .len = sizeof(notifyFailMsg)};
+                if (fca_ble_gatts_value_notify(&notify_data) != 0)
+                {
+                    printf("[TEST] Failed to send notification\n");
+                }
+                else
+                {
+                    printf("[TEST] Notification sent successfully\n");
+                }
+            }
+            else
+            {
+                fca_ble_data_buf_t notify_data = {
+                    .len = sizeof(notifyFailMsg),
+                    .data = notifyFailMsg};
 
-            //     if (fca_ble_gatts_value_notify(&notify_data) != 0)
-            //     {
-            //         printf("[TEST] Failed to send notification\n");
-            //     }
-            //     else
-            //     {
-            //         printf("[TEST] Notification sent successfully\n");
-            //     }
-            // }
+                if (fca_ble_gatts_value_notify(&notify_data) != 0)
+                {
+                    printf("[TEST] Failed to send notification\n");
+                }
+                else
+                {
+                    printf("[TEST] Notification sent successfully\n");
+                }
+            }
         }
-	}
-	break;
+    }
+    break;
 
-	case FCA_BLE_CONNECTION_IND:
-	{
-        printf("FCA_BLE_CONNECTION_IND\r\n");
-		printf("[TEST] BLE connection established\n");
-	}
-	break;
+    case FCA_BLE_CONNECTION_IND:
+    {
+        printf("[TEST] BLE connection established\n");
+    }
+    break;
 
-	case FCA_BLE_DISCONNECTED:
-	{
-        printf("FCA_BLE_DISCONNECTED\r\n");
-		printf("[TEST] BLE connection disconnected\n");
-	}
-	break;
+    case FCA_BLE_DISCONNECTED:
+    {
+        printf("[TEST] BLE connection disconnected\n");
+    }
+    // if (fca_ble_gap_adv_stop() != 0)
+    // {
+    //     printf("[TEST] stop adv failed\n");
+    // }
+    // else
+    // {
+    //     printf("[TEST] Test stop adv successfully\n");
+    // }
+    // fca_ble_deinit();
+    // printf("[TEST] fca_ble_deinit\n");
+    break;
 
-	default:
-		break;
-	}
+    default:
+        break;
+    }
 }
 
 // Initialize test message structure
 void init_test_ble_message()
 {
-	// Initialize advertising data
-	testBleMsg.adv.data = testAdvData;
-	testBleMsg.adv.len = sizeof(testAdvData);
+    // Initialize advertising data
+    testBleMsg.adv.data = testAdvData;
+    testBleMsg.adv.len = sizeof(testAdvData);
 
-	// Initialize scan response data
-	testBleMsg.scan.data = testScanData;
-	testBleMsg.scan.len = sizeof(testScanData);
+    // Initialize scan response data
+    testBleMsg.scan.data = testScanData;
+    testBleMsg.scan.len = sizeof(testScanData);
 
-	testBleMsg.read.data = testReadData;
-	testBleMsg.read.len = sizeof(testReadData);
+    testBleMsg.read.data = testReadData;
+    testBleMsg.read.len = sizeof(testReadData);
 }
 
 // BLE workflow test function
 int test_ble_workflow()
 {
-	int ret = -1;
-	printf("\n===== Starting BLE workflow test =====\n");
+    int ret = -1;
+    printf("\n===== Starting BLE workflow test =====\n");
 
-	// 1. Initialize test messages
-	init_test_ble_message();
-	printf("[TEST] Test messages initialized successfully\n");
+    // 1. Initialize test messages
+    init_test_ble_message();
+    printf("[TEST] Test messages initialized successfully\n");
 
-	// 2. Set BLE service configuration file
-	ret = fca_ble_service_set(TEST_BLE_SERVICE_PATH);
-	if (ret != 0)
-	{
-		printf("[TEST] Failed to set service configuration, error code: %d\n", ret);
-		return ret;
-	}
-	printf("[TEST] Service configuration set successfully\n");
+    // 2. Set BLE service configuration file
+    ret = fca_ble_service_set(TEST_BLE_SERVICE_PATH);
+    if (ret != 0)
+    {
+        printf("[TEST] Failed to set service configuration, error code: %d\n", ret);
+        return ret;
+    }
+    printf("[TEST] Service configuration set successfully\n");
 
-	// // 3. Load BLE driver
-	ret = fca_ble_insmod_driver();
-	if (ret != 0)
-	{
-		printf("[TEST] Failed to load driver, error code: %d\n", ret);
-		return ret;
-	}
-	printf("[TEST] BLE driver loaded successfully\n");
+    // // 3. Load BLE driver
+    ret = fca_ble_insmod_driver();
+    if (ret != 0)
+    {
+        printf("[TEST] Failed to load driver, error code: %d\n", ret);
+        return ret;
+    }
+    printf("[TEST] BLE driver loaded successfully\n");
 
-	// 4. Initialize BLE stack
-	ret = fca_ble_stack_init(test_ble_event_callback);
-	if (ret != 0)
-	{
-		printf("[TEST] Failed to initialize BLE stack, error code: %d\n", ret);
-		return ret;
-	}
-	printf("[TEST] BLE stack initialized successfully\n");
+    // 4. Initialize BLE stack
+    ret = fca_ble_stack_init(test_ble_event_callback);
+    if (ret != 0)
+    {
+        printf("[TEST] Failed to initialize BLE stack, error code: %d\n", ret);
+        return ret;
+    }
+    printf("[TEST] BLE stack initialized successfully\n");
 
-	printf("===== BLE workflow test completed =====\n");
-	return 0;
+    printf("===== BLE workflow test completed =====\n");
+    return 0;
 }
 
 int fca_bluetooth_start(const char *sn, const char *ssid, const char *pssk)
 {
-	test_ble_workflow();
-	return 0;
+    test_ble_workflow();
+    return 0;
 }
 
 int fca_bluetooth_close(void)
 {
-	return 0;
+    return 0;
 }

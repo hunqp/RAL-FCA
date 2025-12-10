@@ -130,13 +130,7 @@ void task_init(const char *params) {
 	// while (1) {
 	// 	sleep(1);
 	// }
-	// testFuncs();
-	
-	#if 0
-	char cmds[128] = {0};
-	snprintf(cmds, sizeof(cmds), "WifiConfig -m sta -n %s -p %s -i wlan0", wiFiSsid.c_str(), wiFiPssk.c_str());
-	system(cmds);
-	#endif
+	// // testFuncs();
 
 	// // create folder save jpeg motion tmp
 	// struct stat st;
