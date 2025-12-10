@@ -88,65 +88,63 @@ void *gw_task_webrtc_entry(void *) {
 
 	wait_all_tasks_started();
 
-// #if defined(RELEASE) && (RELEASE == 1)
-// 	InitLogger(LogLevel::None);
-// #else
-// 	InitLogger(LogLevel::Error);
-// #endif
-// 	if (fca_configGetP2P(&Client::maxClientSetting) != APP_CONFIG_SUCCESS) {
-// 		APP_DBG_RTC("load p2p config error, set p2p default\n");
-// 		Client::maxClientSetting = CLIENT_MAX;
-// 	}
-// 	loadIceServersConfigFile(rtcConfig);
-// 	rtcConfig.disableAutoNegotiation = false;	 // NOTE call setLocalDescription auto
+	InitLogger(LogLevel::None);
 	
-// 	timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_GET_STUN_EXTERNAL_IP_REQ, 3000, TIMER_ONE_SHOT);
-	auto ws = make_shared<WebSocket>();
-// #ifdef TEST_USE_WEB_SOCKET
-// 	/* init websocket */
-// 	auto ws = make_shared<WebSocket>();	   // init poll serivce and threadpool = 4
-// 	ws->onOpen([]() {
-// 		APP_DBG_RTC("WebSocket connected, signaling ready\n");
-// 		timer_remove_attr(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ);
-// #ifdef RELEASE
-// 		timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_REQ, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
-// #endif
-// 	});
+	if (fca_configGetP2P(&Client::maxClientSetting) != APP_CONFIG_SUCCESS) {
+		Client::maxClientSetting = CLIENT_MAX;
+	}
+	loadIceServersConfigFile(rtcConfig);
+	rtcConfig.disableAutoNegotiation = false;
+	
+	timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_GET_STUN_EXTERNAL_IP_REQ, 3000, TIMER_ONE_SHOT);
 
-// 	ws->onClosed([]() {
-// 		APP_DBG_RTC("WebSocket closed\n");
-// 		timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ, GW_WEBRTC_TRY_CONNECT_SOCKET_INTERVAL, TIMER_ONE_SHOT);
-// 	});
+#ifdef TEST_USE_WEB_SOCKET
+	/* init websocket */
+	auto ws = make_shared<WebSocket>();	   // init poll serivce and threadpool = 4
+	ws->onOpen([]() {
+		APP_PRINT("WebSocket has connected, signaling ready\n");
+		timer_remove_attr(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ);
+#ifdef RELEASE
+		timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_REQ, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
+#endif
+	});
 
-// 	ws->onError([](const string &error) { APP_DBG_RTC("WebSocket failed: %s\n", error.c_str()); });
+	ws->onClosed([]() {
+		APP_PRINT("WebSocket has closed\n");
+		timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ, GW_WEBRTC_TRY_CONNECT_SOCKET_INTERVAL, TIMER_ONE_SHOT);
+	});
 
-// 	ws->onMessage([&](variant<binary, string> data) {
-// 		if (!holds_alternative<string>(data)) {
-// 			return;
-// 		}
-// 		string msg = get<string>(data);
-// 		APP_DBG_RTC("%s\n", msg.data());
-// 		task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_SIGNALING_SOCKET_REQ, (uint8_t *)msg.data(), msg.length() + 1);
-// 	});
+	ws->onError([](const string &error) { 
+		APP_WARN("WebSocket failed: %s\n", error.c_str()); 
+	});
 
-// #ifndef RELEASE
-// 	/* For Debugging */
-// 	wsUrl = "ws://42.116.138.42:8089/" + fca_getSerialInfo();
-// 	APP_PRINT("wsURL: %s\n", wsUrl.data());
-// #endif
+	ws->onMessage([&](variant<binary, string> data) {
+		if (!holds_alternative<string>(data)) {
+			return;
+		}
+		string msg = get<string>(data);
+		APP_DBG_RTC("%s\n", msg.data());
+		task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_SIGNALING_SOCKET_REQ, (uint8_t *)msg.data(), msg.length() + 1);
+	});
 
-// 	if (!wsUrl.empty()) {
-// 		timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ, GW_WEBRTC_TRY_CONNECT_SOCKET_INTERVAL, TIMER_ONE_SHOT);
-// 	}
-// #else
-// 	rtc::Preload();	   // init RTC global, auto call when call create Peer
-// #endif
+#ifndef RELEASE
+	/* For Debugging */
+	wsUrl = "ws://42.116.138.42:8089/" + fca_getSerialInfo();
+	APP_PRINT("wsURL: %s\n", wsUrl.data());
+#endif
 
-// 	APP_DBG_RTC("[STARTED] gw_task_webrtc_entry\n");
+	if (!wsUrl.empty()) {
+		timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ, GW_WEBRTC_TRY_CONNECT_SOCKET_INTERVAL, TIMER_ONE_SHOT);
+	}
+#else
+	rtc::Preload();
+#endif
 
-// 	sleep(1);
-// 	avStream = createStream();
-// 	startListSocketListeners();
+	APP_DBG_RTC("[STARTED] gw_task_webrtc_entry\n");
+
+	sleep(1);
+	avStream = createStream();
+	startListSocketListeners();
 
 	while (1) {
 		/* get messge */
@@ -401,11 +399,6 @@ void *gw_task_webrtc_entry(void *) {
 					if (ret == APP_CONFIG_SUCCESS) {
 						loadIceServersConfigFile(rtcConfig);
 						task_post_pure_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_GET_STUN_EXTERNAL_IP_REQ);
-
-						for (const auto &server : rtcConfig.iceServers) {
-							APP_DBG_RTC("set signaling server: %s\n", server.hostname.data());
-							// task_post_dynamic_msg(GW_TASK_SYS_ID, GW_SYS_UPDATE_DOMAIN_LIST_REQ, (uint8_t *)server.hostname.data(), server.hostname.length() + 1);
-						}
 					}
 				}
 			}
@@ -856,42 +849,37 @@ void printAllClients() {
 }
 
 int8_t loadIceServersConfigFile(Configuration &rtcConfig) {
-	// rtcServersConfig_t rtcServerCfg;
-	// int8_t ret = fca_configGetRtcServers(&rtcServerCfg);
-	// try {
-	// 	if (ret == APP_CONFIG_SUCCESS) {
-	// 		rtcConfig.iceServers.clear();
+	rtcServersConfig_t rtcServerCfg;
+	int8_t ret = fca_configGetRtcServers(&rtcServerCfg);
+	try {
+		if (ret == APP_CONFIG_SUCCESS) {
+			rtcConfig.iceServers.clear();
 
-	// 		APP_DBG_RTC("List stun server:\n");
-	// 		string url = "";
-	// 		int size   = rtcServerCfg.arrStunServerUrl.size();
-	// 		for (int idx = 0; idx < size; idx++) {
-	// 			url = rtcServerCfg.arrStunServerUrl.at(idx);
-	// 			APP_DBG_RTC("\t[%d] url: %s\n", idx + 1, url.c_str());
-	// 			if (url != "") {
-	// 				rtcConfig.iceServers.emplace_back(url);
-	// 			}
-	// 		}
-	// 		APP_DBG_RTC("\n");
-	// 		APP_DBG_RTC("List turn server:\n");
-	// 		size = rtcServerCfg.arrTurnServerUrl.size();
-	// 		for (int idx = 0; idx < size; idx++) {
-	// 			url = rtcServerCfg.arrTurnServerUrl.at(idx);
-	// 			APP_DBG_RTC("\t[%d] url: %s\n", idx + 1, url.c_str());
-	// 			if (url != "") {
-	// 				rtcConfig.iceServers.emplace_back(url);
-	// 			}
-	// 		}
-	// 		APP_DBG_RTC("\n");
-	// 	}
-	// }
-	// catch (const exception &error) {
-	// 	APP_DBG_RTC("loadIceServersConfigFile %s\n", error.what());
-	// 	ret = APP_CONFIG_ERROR_DATA_INVALID;
-	// }
-
-	rtcConfig.iceServers.emplace_back("turn:turnuser:camfptvnturn133099@stunp-connect.fcam.vn:3478");
-	rtcConfig.iceServers.emplace_back("turn:turnuser:camfptvnturn133099@stun-connect.fcam.vn:3478");
+			APP_PRINT("List STUN server:\n");
+			string url = "";
+			int size = rtcServerCfg.arrStunServerUrl.size();
+			for (int idx = 0; idx < size; idx++) {
+				url = rtcServerCfg.arrStunServerUrl.at(idx);
+				APP_PRINT("\t[%d] url: %s\n", idx + 1, url.c_str());
+				if (url != "") {
+					rtcConfig.iceServers.emplace_back(url);
+				}
+			}
+			APP_PRINT("List TURN server:\n");
+			size = rtcServerCfg.arrTurnServerUrl.size();
+			for (int idx = 0; idx < size; idx++) {
+				url = rtcServerCfg.arrTurnServerUrl.at(idx);
+				APP_PRINT("\t[%d] url: %s\n", idx + 1, url.c_str());
+				if (url != "") {
+					rtcConfig.iceServers.emplace_back(url);
+				}
+			}
+		}
+	}
+	catch (const exception &error) {
+		APP_ERROR("%s", error.what());
+		ret = APP_CONFIG_ERROR_DATA_INVALID;
+	}
 
 	return APP_CONFIG_SUCCESS;
 }

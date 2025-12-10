@@ -232,38 +232,47 @@ bool mqtt::isConnected(void) {
  * CALLBACK FUNCTIONS
  ******************************************************************************/
 void mqtt::on_connect(int rc) {
-	if (rc == 0) {
-		APP_DBG_MQTT("[MQTT_CONTROL] on_connect OK\n");
-		setConnected(true);
-		task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_GEN_MQTT_STATUS_REQ);
+	setConnected((rc == 0) ? true : false);
+	std::string subTopic = std::string(m_topics.topicRequest);
+	subcribePerform(subTopic, 0);
+	subTopic = std::string(m_topics.topicSignalingRequest);
+	subcribePerform(subTopic, 1);
+	subTopic = std::string(m_topics.topicStatus);
+	subcribePerform(subTopic, 1);
 
-		string subTopic = string(m_topics.topicRequest);
-		subcribePerform(subTopic, 0);
-		subTopic = string(m_topics.topicSignalingRequest);
-		subcribePerform(subTopic, 1);
-		subTopic = string(m_topics.topicStatus);
-		subcribePerform(subTopic, 1);
+	timer_set(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_ON_CONNECTED, 1000, TIMER_ONE_SHOT);
 
-		/* send signal to LED task */
-		ledStatus.controlLedEvent(Indicator::EVENT::INTERNET_CONNECTION, Indicator::STATUS::SERVER_CONNECTED);
-		task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_PLAY_VOICE_NETWORK_CONNECTED_REQ);
-	}
-	else {
-		// APP_DBG_MQTT("[MQTT_CONTROL] on_connect ERROR : %d\n", rc);
-		setConnected(false);
-	}
+	// if (rc == 0) {
+
+	// 	setConnected(true);
+	// 	task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_GEN_MQTT_STATUS_REQ);
+
+	// 	subcribePerform(std::string(m_topics.topicRequest), 0);
+	// 	subcribePerform(std::string(m_topics.topicSignalingRequest), 1);
+	// 	subcribePerform(std::string(m_topics.topicStatus), 1);
+
+	// 	/* send signal to LED task */
+	// 	ledStatus.controlLedEvent(Indicator::EVENT::INTERNET_CONNECTION, Indicator::STATUS::SERVER_CONNECTED);
+	// 	task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_PLAY_VOICE_NETWORK_CONNECTED_REQ);
+	// }
+	// else {
+	// 	// APP_DBG_MQTT("[MQTT_CONTROL] on_connect ERROR : %d\n", rc);
+	// 	setConnected(false);
+	// }
 }
 
 void mqtt::on_disconnect(int rc) {
 	(void)rc;
 	setConnected(false);
-	if (m_enOnDisconnectCb) {
-		APP_DBG_MQTT("[mqtt] on_disconnect %d, %s\n", rc, mosqpp::connack_string(rc));
-		timer_set(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ, GW_CLOUD_MQTT_TRY_CONNECT_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
-	}
-	else {
-		APP_DBG_MQTT("disable on_disconnect\n");
-	}
+	task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_ON_DISCONNECTED);
+
+	// if (m_enOnDisconnectCb) {
+	// 	APP_DBG_MQTT("[mqtt] on_disconnect %d, %s\n", rc, mosqpp::connack_string(rc));
+	// 	timer_set(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ, GW_CLOUD_MQTT_TRY_CONNECT_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
+	// }
+	// else {
+	// 	APP_DBG_MQTT("disable on_disconnect\n");
+	// }
 }
 
 void mqtt::on_publish(int mid) {
@@ -283,7 +292,7 @@ void mqtt::on_message(const struct mosquitto_message *message) {
 		APP_DBG_MQTT("[cloud_mqtt][on _message] topic:%s\tpayloadlen:%d\n", message->topic, message->payloadlen);
 		if (checkMessageDuplicate(message) == true) {
 			/* post message to mqtt task */
-			task_post_dynamic_msg(GW_TASK_CLOUD_ID, GW_CLOUD_DATA_COMMUNICATION, (uint8_t *)message->payload, message->payloadlen);
+			task_post_dynamic_msg(GW_TASK_CLOUD_ID, GW_CLOUD_PROCESS_INCOME_DATA, (uint8_t *)message->payload, message->payloadlen);
 		}
 		else {
 			APP_DBG_MQTT("\n Duplicate message! \n");

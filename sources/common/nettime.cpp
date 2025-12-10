@@ -12,7 +12,7 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 
-#include "lwNTPd.hh"
+#include "nettime.hh"
 
 #define VERSION_3 (3)
 #define VERSION_4 (4)
@@ -215,11 +215,11 @@ void* LwNTPd::lwTimeServerPollingCalls(void *args) {
 	LwNTPd *me = (LwNTPd*)args;
 	
 	char *listDomains[] = {
-		"0.pool.ntp.org", 
-		"1.pool.ntp.org", 
-		"2.pool.ntp.org", 
-		"3.pool.ntp.org", 
-		"time.google.com"
+		(char*)"0.pool.ntp.org", 
+		(char*)"1.pool.ntp.org", 
+		(char*)"2.pool.ntp.org", 
+		(char*)"3.pool.ntp.org", 
+		(char*)"time.google.com"
 	};
 	const int totalDomains = sizeof(listDomains) / sizeof(listDomains[0]);
 

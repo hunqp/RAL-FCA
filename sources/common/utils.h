@@ -75,6 +75,8 @@ std::weak_ptr<T> make_weak_ptr(std::shared_ptr<T> ptr) {
 	return ptr;
 }
 
+extern int resolvDomain(const char *domain, uint8_t ip4[4], char ip4Text[16]);
+
 extern uint64_t getTimeMs();
 extern bool check_env(const char *env_name);
 extern int CURL_Upload(const std::string cer, const std::string url, const std::string file, string &http_respone_string);

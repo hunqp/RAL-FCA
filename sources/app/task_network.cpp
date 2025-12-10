@@ -26,9 +26,9 @@
 #include "fca_bluetooth.h"
 #include "network_manager.h"
 
-#include "lwcgi.hh"
-#include "lwNTPd.hh"
+#include "nettime.hh"
 #include "rncryptor_c.h"
+#include "streamsocket.hh"
 
 #define TAG							   "[network] "
 #define NETWORK_PING_INTERNET_INTERVAL (5)
@@ -69,6 +69,23 @@ void *gw_task_network_entry(void *) {
 
 	APP_DBG_NET(TAG "[STARTED] gw_task_network_entry\n");
 
+	ntpd.onDoUpdateSuccess([](struct tm *local) {
+		char datetime[64] = {0}, cmds[128] = {0};
+		static bool isFirstTime = true;
+		if (isFirstTime) {
+			isFirstTime = false;
+			ntpd.setTimePeriodicUpdate(3600000);
+			task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_INIT_REQ);
+			SYSI("Network time has updated: %s\r\n", datetime);
+		}
+		strftime(datetime, 64, "%Y-%m-%d %H:%M:%S", local);
+		sprintf(cmds, "busybox date -s \"%s\" > /dev/null", datetime);
+		system(cmds);
+		APP_PRINT("Network time has updated: %s\r\n", datetime);
+	});
+
+	task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_NETWORK_INIT_REQ);
+
 	while (1) {
 		/* get messge */
 		msg = ak_msg_rev(GW_TASK_NETWORK_ID);
@@ -101,6 +118,9 @@ void *gw_task_network_entry(void *) {
 			else {
 				task_post_dynamic_msg(GW_TASK_NETWORK_ID, GW_NET_WIFI_DO_CONNECT, (uint8_t *)&wiFiSettings, sizeof(wiFiSettings));
 			}
+
+			/* Run NTP services */
+			ntpd.begin();
 
 			/* Create thread periodic ping to internet */
 			pthread_t tPingId = 0;
@@ -297,8 +317,8 @@ void *gw_task_network_entry(void *) {
 			FCA_API_ASSERT(fca_wifi_stop_ap_mode(FCA_NET_WIFI_AP_IF_NAME) == 0);
 			fca_netWifiAPGenInfo(mac, MAX_MAC_LEN, ssid, pass);
 			#if 1 /* Hard code for testing */
-			memset(ssid, 0, sizeof(ssid)); strcpy(ssid, "RAL_WIFI_AP_TEST");
-			memset(pass, 0, sizeof(pass)); strcpy(pass, "1234567890");
+			strcpy(ssid, vendorsHostapdSsid.c_str());
+			strcpy(pass, vendorsHostapdPssk.c_str());
 			#endif
 
 			APP_PRINT("- WiFi AP -\r\n");
@@ -524,28 +544,7 @@ void *gw_task_network_entry(void *) {
 			APP_DBG_SIG("GW_NET_INTERNET_UPDATED\n");
 
 			if (isInternetConnected) {
-				SYSI("Internet has connected -> Run time services\r\n");
-				ntpd.onDoUpdateSuccess([&](struct tm* local) {
-					static bool isFirstTime = true;
-					if (isFirstTime) {
-						isFirstTime = false;
-						char datetime[64], cmds[128];
-						memset(cmds, 0, sizeof(cmds));
-						memset(datetime, 0, sizeof(datetime));
-						strftime(datetime, 64, "%Y-%m-%d %H:%M:%S", local);
-						sprintf(cmds, "busybox date -s \"%s\" > /dev/null", datetime);
-						system(cmds);
-
-						systemCmd("echo 1 > %s", NTP_UPDATE_STATUS_FILE);
-						ntpd.setTimePeriodicUpdate(3600000);
-						SYSI("Time server has updated: %s\r\n", datetime);
-					}
-				});
-				ntpd.onDoUpdateFailure([](char *domain, char* err) {
-					APP_DBG("Time server %s update time failed -> %s\r\n", domain, err);
-				});
-
-				ntpd.begin();
+				SYSI("Internet has connected\r\n");
 				ledStatus.controlLedEvent(Indicator::EVENT::INTERNET_CONNECTION, Indicator::STATUS::CONNECTED, Indicator::STATUS::START);
 			}
 			else {
@@ -665,7 +664,6 @@ static bool pingToDns(void) {
 		if (system(cmds) == 0) {
 			return true;
 		}
-		// APP_WARN("Can't ping to %s", listDns[id]);
 	}
 	return false;
 }

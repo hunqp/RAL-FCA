@@ -29,44 +29,43 @@ void *gw_task_av_entry(void *) {
 		case GW_AV_INIT_REQ: {
 			APP_DBG_SIG("GW_AV_INIT_REQ\n");
 
-			// /* Initialise video */
-			// FCA_ENCODE_S encoders;
-			// {
-			// 	nlohmann::json js;
-			// 	FCA_ParserUserFiles(js, FCA_ENCODE_FILE);
-			// 	if (!FCA_ParserParams(js, &encoders)) {
-			// 		APP_ERROR("Can't parser encoders");
-			// 		break;
-			// 	}
-			// }
-			// videoHelpers.initialise();
-			// videoHelpers.setEncoders(&encoders);
-			// videoHelpers.startStreamChannels();
-			// videoHelpers.dummy();
+			/* Initialise video */
+			FCA_ENCODE_S encoders;
+			{
+				nlohmann::json js;
+				FCA_ParserUserFiles(js, FCA_ENCODE_FILE);
+				if (!FCA_ParserParams(js, &encoders)) {
+					APP_ERROR("Can't parser encoders");
+					break;
+				}
+			}
+			videoHelpers.initialise();
+			videoHelpers.setEncoders(&encoders);
+			videoHelpers.startStreamChannels();
+			videoHelpers.dummy();
 
-			// /* Initialise audio */
-			// audioHelpers.initialise();
-			// audioHelpers.startStreamChannels();
+			/* Initialise audio */
+			audioHelpers.initialise();
+			audioHelpers.startStreamChannels();
 
-			// /* TODO: Read configuration and set volume for mic and speaker */
+			/* TODO: Read configuration and set volume for mic and speaker */
 
-			// /* Set OSD */
-			// FCA_OSD_S osds;
-			// {
-			// 	nlohmann::json js;
-			// 	FCA_ParserUserFiles(js, FCA_WATERMARK_FILE);
-			// 	if (!FCA_ParserParams(js, &osds)) {
-			// 		APP_ERROR("Can't parser OSD");
-			// 	}
-			// }
-			// videoHelpers.setOsd(&osds);
+			/* Set OSD */
+			FCA_OSD_S osds;
+			{
+				nlohmann::json js;
+				FCA_ParserUserFiles(js, FCA_WATERMARK_FILE);
+				if (!FCA_ParserParams(js, &osds)) {
+					APP_ERROR("Can't parser OSD");
+				}
+			}
+			videoHelpers.setOsd(&osds);
 
-			// /* Query device has owner or not */
-			// std::string ownerStatusFile = FCA_VENDORS_FILE_LOCATE(FCA_OWNER_STATUS);
-			// if (doesFileExist(ownerStatusFile.c_str())) {
-			// 	audioHelpers.notifySalutation();
-			// }
-			timer_set(GW_TASK_NETWORK_ID, GW_NET_NETWORK_INIT_REQ, 2000, TIMER_ONE_SHOT);
+			/* Query device has owner or not */
+			std::string ownerStatusFile = FCA_VENDORS_FILE_LOCATE(FCA_OWNER_STATUS);
+			if (doesFileExist(ownerStatusFile.c_str())) {
+				audioHelpers.notifySalutation();
+			}
 			
 			// timer_set(GW_TASK_DETECT_ID, GW_DETECT_INIT_REQ, GW_DETECT_INIT_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
 			task_post_pure_msg(GW_TASK_SYS_ID, GW_SYS_START_RTSPD_REQ);

@@ -1,11 +1,11 @@
--include sources/common/lwIP/Makefile.mk
 -include sources/common/RNCryptor-C/Makefile.mk
 
 CXXFLAGS += -Isources/common
 
 VPATH += sources/common
 
-OBJ += $(OBJ_DIR)/ntpd.o
+OBJ += $(OBJ_DIR)/streamsocket.o
+OBJ += $(OBJ_DIR)/nettime.o
 OBJ += $(OBJ_DIR)/cmd_line.o
 OBJ += $(OBJ_DIR)/firmware.o
 OBJ += $(OBJ_DIR)/utils.o

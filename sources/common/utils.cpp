@@ -952,3 +952,32 @@ int systemCmd(const char *fmt, ...) {
 		return ret;
 	}
 }
+
+int resolvDomain(const char *domain, uint8_t ip4[4], char ip4Text[16]) {
+    int status;
+    struct addrinfo hints, *res, *p;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if ((status = getaddrinfo(domain, NULL, &hints, &res)) != 0) {
+        fprintf(stderr, "getaddrinfo() return %s\n", gai_strerror(status));
+        return -1;
+    }
+
+    for (p = res; p != NULL; p = p->ai_next) {
+        struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+        if (ip4) {
+            memcpy(ip4, &ipv4->sin_addr, 4);
+        }
+        if (ip4Text) {
+            inet_ntop(AF_INET, &ipv4->sin_addr, ip4Text, 16);
+        }
+        freeaddrinfo(res);
+        return 0;
+    }
+
+    freeaddrinfo(res);
+    return -2;
+}

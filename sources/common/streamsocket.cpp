@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/select.h>
-#include "lwcgi.hh"
+#include "streamsocket.hh"
 
 typedef struct {
     int cFd;

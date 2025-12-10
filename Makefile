@@ -15,7 +15,7 @@ OBJNM := $(CROSS_COMPILE)nm
 
 # Release build option
 OBJ_DIR 	:= build
-NAME_MODULE	:= PeerConnection
+NAME_MODULE	:= fcam
 
 # Library option
 LDFLAGS	+= -Wl,-Map=$(OBJ_DIR)/$(NAME_MODULE).map -Wl,--gc-sections 

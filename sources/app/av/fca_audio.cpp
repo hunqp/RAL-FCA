@@ -108,7 +108,7 @@ void AudioHelpers::silent() {
 
 void AudioHelpers::playSiren(int collapseAfterSecs) {
 	mSirenBoolean = true;
-    const std::string filename = FCA_SOUND_MOTION_ALARM_FILE;
+    const std::string filename = FCA_DEFAULT_SOUND_LOCATE(FCA_SOUND_MOTION_ALARM_FILE);
 
     mSoundQueue.dispatch([filename, collapseAfterSecs, this]() {
         FILE *fp = NULL;
@@ -165,7 +165,7 @@ int AudioHelpers::setSpeakerVolume(int value) {
 }
 
 void AudioHelpers::notifySalutation() {
-	const std::string filename = FCA_SOUND_HELLO_DEVICE_FILE;
+	const std::string filename = FCA_DEFAULT_SOUND_LOCATE(FCA_SOUND_HELLO_DEVICE_FILE);
 	if (access(filename.c_str(), F_OK) != 0) {
 		return;
 	}
@@ -176,7 +176,7 @@ void AudioHelpers::notifySalutation() {
 }
 
 void AudioHelpers::notifyFactoryReset() {
-	const std::string filename = FCA_SOUND_REBOOT_DEVICE_FILE;
+	const std::string filename = FCA_DEFAULT_SOUND_LOCATE(FCA_SOUND_REBOOT_DEVICE_FILE);
 	if (access(filename.c_str(), F_OK) != 0) {
 		return;
 	}
@@ -187,7 +187,7 @@ void AudioHelpers::notifyFactoryReset() {
 }
 
 void AudioHelpers::notifyWiFiIsConnecting() {
-	const std::string filename = FCA_SOUND_WAIT_CONNECT_FILE;
+	const std::string filename = FCA_DEFAULT_SOUND_LOCATE(FCA_SOUND_WAIT_CONNECT_FILE);
 	if (access(filename.c_str(), F_OK) != 0) {
 		return;
 	}
@@ -198,7 +198,7 @@ void AudioHelpers::notifyWiFiIsConnecting() {
 }
 
 void AudioHelpers::notifyWiFiHasConnected() {
-	const std::string filename = FCA_SOUND_NET_CONNECT_SUCCESS_FILE;
+	const std::string filename = FCA_DEFAULT_SOUND_LOCATE(FCA_SOUND_NET_CONNECT_SUCCESS_FILE);
 	if (access(filename.c_str(), F_OK) != 0) {
 		return;
 	}
@@ -209,7 +209,7 @@ void AudioHelpers::notifyWiFiHasConnected() {
 }
 
 void AudioHelpers::notifyBluetoothHasConnected() {
-	const std::string filename = FCA_SOUND_BLE_CONNECTED_FILE;
+	const std::string filename = FCA_DEFAULT_SOUND_LOCATE(FCA_SOUND_BLE_CONNECTED_FILE);
 	if (access(filename.c_str(), F_OK) != 0) {
 		return;
 	}
@@ -220,7 +220,7 @@ void AudioHelpers::notifyBluetoothHasConnected() {
 }
 
 void AudioHelpers::notifyBluetoothHasDisconnected() {
-	const std::string filename = FCA_SOUND_BLE_DISCONNECTED_FILE;
+	const std::string filename = FCA_DEFAULT_SOUND_LOCATE(FCA_SOUND_BLE_DISCONNECTED_FILE);
 	if (access(filename.c_str(), F_OK) != 0) {
 		return;
 	}
@@ -231,7 +231,7 @@ void AudioHelpers::notifyBluetoothHasDisconnected() {
 }
 
 void AudioHelpers::notifyChangeBluetoothMode() {
-	const std::string filename = FCA_SOUND_CHANGE_BLE_MODE_FILE;
+	const std::string filename = FCA_DEFAULT_SOUND_LOCATE(FCA_SOUND_CHANGE_BLE_MODE_FILE);
 	if (access(filename.c_str(), F_OK) != 0) {
 		return;
 	}
@@ -242,7 +242,7 @@ void AudioHelpers::notifyChangeBluetoothMode() {
 }
 
 void AudioHelpers::notifyChangeWiFiMode() {
-	const std::string filename = FCA_SOUND_CHANGE_WIFI_MODE_FILE;
+	const std::string filename = FCA_DEFAULT_SOUND_LOCATE(FCA_SOUND_CHANGE_WIFI_MODE_FILE);
 	if (access(filename.c_str(), F_OK) != 0) {
 		return;
 	}

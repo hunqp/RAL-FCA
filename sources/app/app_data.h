@@ -20,7 +20,6 @@
 #include "rtc/rtc.hpp"
 #include "cpptime.h"
 #include "mqtt.h"
-#include "ntpd.h"
 #include "rtspd.h"
 
 

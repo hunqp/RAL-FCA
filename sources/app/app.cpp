@@ -11,13 +11,18 @@ std::string deviceSerialNumber;
 std::string defaultConfigurationPath;
 std::string vendorsConfigurationPath;
 
-static void setupEnvir(const char *params) {
+std::string vendorsHostapdSsid;
+std::string vendorsHostapdPssk;
+
+static void setupEnvirVariables(const char *params) {
 	try {
 		nlohmann::json js;
 		if (read_json_file(js, std::string(params))) {
 			deviceSerialNumber = js["SerialNumber"].get<std::string>();
 			defaultConfigurationPath = js["DefaultConfigurationPath"].get<std::string>();
 			vendorsConfigurationPath = js["VendorsConfigurationPath"].get<std::string>();
+			vendorsHostapdSsid = js["HostapdSSID"].get<std::string>();
+			vendorsHostapdPssk = js["HostapdPSSK"].get<std::string>();
 
 			APP_PRINT("Serial number: %s\r\n", deviceSerialNumber.c_str());
 			APP_PRINT("Default configuration path: %s\r\n", defaultConfigurationPath.c_str());
@@ -98,7 +103,7 @@ void task_init(const char *params) {
 	signal(SIGPIPE, SIG_IGN);
 
 	if (params) {
-		setupEnvir(params);
+		setupEnvirVariables(params);
 	}
 
 	/* Setup logger for application */
@@ -107,24 +112,25 @@ void task_init(const char *params) {
 	JOURNAL_LOGGER.filename = strdup(FCA_VENDORS_FILE_LOCATE("journal.log").c_str());
 	RUNTIME_LOGGER.maxBytesCanBeHold = (10 * 1024);
 
-	char mac[17] = {0}, ssid[32] = {0}, pass[32] = {0};
-	fca_netWifiAPGenInfo(mac, MAX_MAC_LEN, ssid, pass);
-	std::string ble_ssid;
-	char chars[64] = {0};
-	snprintf(chars, sizeof(chars), "%s-%s-%s", "FC", "I04L", deviceSerialNumber.c_str());
-	ble_ssid.assign(std::string(chars));
-	std::transform(ble_ssid.begin(), ble_ssid.end(), ble_ssid.begin(), ::toupper);
-	int rc = fca_bluetooth_start(deviceSerialNumber.c_str(), ble_ssid.c_str(), pass);
-	if (rc != 0) {
-		SYSE("Can't start bluetooth mode\r\n");
-	}
-	else APP_PRINT("Bluetooth mode has started SN {%s}, SSID {%s}, PSSK {%s}\r\n", deviceSerialNumber.c_str(), ssid, pass);
+	motors.initialise(NULL, NULL);
 
-	
-	while (1) {
-		sleep(1);
-	}
-	testFuncs();
+	// char mac[17] = {0}, ssid[32] = {0}, pass[32] = {0};
+	// fca_netWifiAPGenInfo(mac, MAX_MAC_LEN, ssid, pass);
+	// std::string ble_ssid;
+	// char chars[64] = {0};
+	// snprintf(chars, sizeof(chars), "%s-%s-%s", "FC", "I04L", deviceSerialNumber.c_str());
+	// ble_ssid.assign(std::string(chars));
+	// std::transform(ble_ssid.begin(), ble_ssid.end(), ble_ssid.begin(), ::toupper);
+	// int rc = fca_bluetooth_start(deviceSerialNumber.c_str(), ble_ssid.c_str(), pass);
+	// if (rc != 0) {
+	// 	SYSE("Can't start bluetooth mode\r\n");
+	// }
+	// else APP_PRINT("Bluetooth mode has started SN {%s}, SSID {%s}, PSSK {%s}\r\n", deviceSerialNumber.c_str(), ssid, pass);
+
+	// while (1) {
+	// 	sleep(1);
+	// }
+	// testFuncs();
 	
 	#if 0
 	char cmds[128] = {0};
@@ -144,13 +150,10 @@ void task_init(const char *params) {
 
 	// gpiosHelpers.InitDrivers();
 
-	caSslPath = vendorsConfigurationPath + std::string("/") + FCA_NETWORK_CA_FILE;
+	caSslPath = FCA_VENDORS_FILE_LOCATE(FCA_NETWORK_CA_FILE);
 	if (!doesFileExist(caSslPath.c_str())) {
-		caSslPath = defaultConfigurationPath + std::string("/") + FCA_NETWORK_CA_FILE;
+		caSslPath = FCA_DEFAULT_FILE_LOCATE(FCA_NETWORK_CA_FILE);
 	}
 
-	// offlineEventManager.setWaitTimeUpdate(true);
-
-	// motors.initialise(NULL, NULL);
-
+	offlineEventManager.setWaitTimeUpdate(true);
 }

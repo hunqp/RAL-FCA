@@ -32,13 +32,11 @@ extern std::atomic<bool> networkStatus;
 q_msg_t gw_task_cloud_mailbox;
 static unique_ptr<mqtt> mospp;
 
-// static bool mqttInitialized		 = false;
 static int mqttFailCnt			 = 0;
 static FCA_MQTT_CONN_S mqttService = {0};
 static mqttTopicCfg_t mqttTopics;
 
 string getMqttConnectStatus();
-
 static void process_mqtt_msg(unsigned char *pload, int len);
 
 void *gw_task_cloud_entry(void *) {
@@ -54,34 +52,55 @@ void *gw_task_cloud_entry(void *) {
 	sprintf(mqttTopics.topicSignalingRequest, "ipc/fss/%s/%s", serial.c_str(), "request/signaling");
 	sprintf(mqttTopics.topicSignalingResponse, "ipc/fss/%s/%s", serial.c_str(), "response/signaling");
 	sprintf(mqttTopics.topicAlarm, "ipc/fss/%s/%s", serial.c_str(), "alarm");
-
-	if (fca_configGetMQTT(&mqttService) == APP_CONFIG_SUCCESS) {
-		task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
-	}
-	// strcpy(mqttService.host, "beta-broker-mqtt.fcam.vn");
-	// strcpy(mqttService.clientID, "ipc-ipc");
-	// strcpy(mqttService.username, deviceSerialNumber.c_str());
-	// strcpy(mqttService.password, deviceSerialNumber.c_str());
-	// mqttService.port = 8883;
-	// mqttService.keepAlive = 30;
-	// mqttService.QOS = 1;
-	// mqttService.retain = true;
-	// mqttService.bTLSEnable = true;
-	// strcpy(mqttService.TLSVersion, "tlsv1.2");
-	// strcpy(mqttService.protocol, "mqtt\/tls");
-	// mqttService.bEnable = true;
-	// task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
+	fca_configGetMQTT(&mqttService);
+	// if (fca_configGetMQTT(&mqttService) == APP_CONFIG_SUCCESS) {
+	// 	task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
+	// }
 
 	while (1) {
 		/* get messge */
 		msg = ak_msg_rev(GW_TASK_CLOUD_ID);
 
 		switch (msg->header->sig) {
-		case GW_CLOUD_DATA_COMMUNICATION: {
-			APP_DBG_SIG("GW_CLOUD_DATA_COMMUNICATION\n");
+		case GW_CLOUD_MQTT_INIT_REQ: {
+			APP_DBG_SIG("GW_CLOUD_MQTT_INIT_REQ\n");
+
+			APP_PRINT("MQTT CONNECTION\r\n");
+			APP_PRINT("\tHost: %s\r\n", mqttService.host);
+			APP_PRINT("\tUsername: %s\r\n", mqttService.username);
+			APP_PRINT("\tPassword: %s\r\n", mqttService.password);
+			APP_PRINT("\tCERTIFICATE Path: %s\r\n", caSslPath.c_str());
+
+			task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
+		}
+		break;
+
+		case GW_CLOUD_PROCESS_INCOME_DATA: {
+			APP_DBG_SIG("GW_CLOUD_PROCESS_INCOME_DATA\n");
+
 			uint8_t *data = (uint8_t *)msg->header->payload;
 			int len	= (int)msg->header->len;
 			process_mqtt_msg(data, len);
+		}
+		break;
+
+		case GW_CLOUD_MQTT_ON_CONNECTED: {
+			APP_DBG_SIG("GW_CLOUD_MQTT_ON_CONNECTED\n");
+
+			timer_remove_attr(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
+
+			SYSI("Connected to server\r\n");
+			audioHelpers.notifyWiFiHasConnected();
+			ledStatus.controlLedEvent(Indicator::EVENT::INTERNET_CONNECTION, Indicator::STATUS::SERVER_CONNECTED);
+			task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_GEN_MQTT_STATUS_REQ);
+		}
+		break;
+
+		case GW_CLOUD_MQTT_ON_DISCONNECTED: {
+			APP_DBG_SIG("GW_CLOUD_MQTT_ON_DISCONNECTED\n");
+
+			SYSW("Disconnected to server\r\n");
+			task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
 		}
 		break;
 
@@ -90,75 +109,42 @@ void *gw_task_cloud_entry(void *) {
 
 			timer_remove_attr(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_CHECK_MQTT_LOOP_REQ);
 			timer_remove_attr(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
-			timer_remove_attr(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_CHECK_CONNECT_STATUS_REQ);
 			timer_remove_attr(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_CHECK_SUB_TOPIC_REQ);
 
-			APP_PRINT("MQTT CONNECTION\r\n");
-			APP_PRINT("\tHost: %s\r\n", mqttService.host);
-			APP_PRINT("\tUsername: %s\r\n", mqttService.username);
-			APP_PRINT("\tPassword: %s\r\n", mqttService.password);
-			APP_PRINT("\tCERTIFICATE Path: %s\r\n", caSslPath.c_str());
-
+			/* Resolve domain into IP address before connecting */
+			char leased[16] = {0};
+			if (resolvDomain(mqttService.host, NULL, leased) != 0) {
+				RAM_SYSW("Couldn't resolve domain from %s\r\n", mqttService.host);
+				timer_set(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ, 2000, TIMER_ONE_SHOT);
+				break;
+			}
+			APP_PRINT("Leased %s from %s\r\n", leased, mqttService.host);
+			
 			mospp.reset();
 			usleep(500 * 1000);
 			mospp = make_unique<mqtt>(&mqttTopics, &mqttService);
-			int ecode = mospp->tryConnect(caSslPath.c_str());
-			APP_DBG_MQTT("MQTT_ECODE: %d\n", ecode);
-			if (ecode != MOSQ_ERR_SUCCESS) {
-				timer_set(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ, GW_CLOUD_MQTT_TRY_CONNECT_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
-			}
-			else {
-				timer_set(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_CHECK_CONNECT_STATUS_REQ, GW_CLOUD_MQTT_CHECK_CONNECT_STATUS_INTERVAL, TIMER_ONE_SHOT);
-			}
 
-			// /* check mqtt connect failed */
-			// if (networkStatus.load()) {
-			// 	if (++mqttFailCnt > MQTT_FAIL_COUNT_MAX) {
-			// 		APP_DBG_MQTT("set mqtt default server\n");
-			// 		mqttFailCnt = 0;
-
-			// 		int ntpSt = getNtpStatus();
-			// 		if (ntpSt == 1) {
-			// 			APP_DBG("time sync ok\n");
-			// 			if (caSslPath.find(FCA_USER_CONF_PATH) != string::npos) {
-			// 				APP_DBG("set default CA file\n");
-			// 				caSslPath = FCA_DFAUL_CONF_PATH "/" FCA_NETWORK_CA_FILE;
-			// 				task_post_pure_msg(GW_TASK_UPLOAD_ID, GW_UPLOAD_INIT_REQ);
-			// 				systemCmd("rm -f %s/%s", FCA_USER_CONF_PATH, FCA_NETWORK_CA_FILE);
-			// 			}
-			// 			else {
-			// 				APP_DBG("try get CA file\n");
-			// 				LOG_FILE_INFO("try get CA file\n");
-			// 				task_post_pure_msg(GW_TASK_SYS_ID, GW_SYS_GET_CA_FILE_REQ);
-			// 			}
-
-			// 			/* set default mqtt config */
-			// 			systemCmd("rm -f %s/%s", FCA_USER_CONF_PATH, FCA_NETWORK_MQTT_FILE);
-			// 			fca_configGetMQTT(&mqttService);
-			// 		}
-			// 	}
-			// }
-			// else {
-			// 	APP_DBG_MQTT("network failed\n");
-			// 	mqttFailCnt = 0;
-			// }
-			APP_DBG_MQTT("mqtt retry connect counter: %d\n", mqttFailCnt);
+			int rc = mospp->tryConnect(caSslPath.c_str());
+			APP_PRINT("MQTT Connection return %d\r\n", rc);
+			timer_set(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ, GW_CLOUD_MQTT_TRY_CONNECT_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
 		}
 		break;
 
-		case GW_CLOUD_MQTT_CHECK_CONNECT_STATUS_REQ: {
-			APP_DBG_SIG("GW_CLOUD_MQTT_CHECK_CONNECT_STATUS_REQ\n");
-			if (mospp) {
-				if (!mospp->isConnected()) {
-					task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
-				}
-				else {
-					APP_DBG_MQTT("mqtt connect ok, reset retry counter\n");
-					mqttFailCnt = 0;
-					timer_set(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_CHECK_MQTT_LOOP_REQ, GW_CLOUD_MQTT_CHECK_LOOP_TIMEOUT_INTERVAL, TIMER_PERIODIC);
-				}
-			}
-		} break;
+		// case GW_CLOUD_MQTT_CHECK_CONNECT_STATUS_REQ: {
+		// 	APP_DBG_SIG("GW_CLOUD_MQTT_CHECK_CONNECT_STATUS_REQ\n");
+
+		// 	if (mospp) {
+		// 		if (!mospp->isConnected()) {
+		// 			task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
+		// 		}
+		// 		else {
+		// 			APP_DBG_MQTT("mqtt connect ok, reset retry counter\n");
+		// 			mqttFailCnt = 0;
+		// 			timer_set(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_CHECK_MQTT_LOOP_REQ, GW_CLOUD_MQTT_CHECK_LOOP_TIMEOUT_INTERVAL, TIMER_PERIODIC);
+		// 		}
+		// 	}
+		// }
+		// break;
 
 		case GW_CLOUD_SET_MQTT_CONFIG_REQ: {
 			APP_DBG_SIG("GW_CLOUD_SET_MQTT_CONFIG_REQ\n");
@@ -278,11 +264,6 @@ void *gw_task_cloud_entry(void *) {
 			}
 		} break;
 
-		case GW_CLOUD_MESSAGE_LENGTH_OUT_OF_RANGE_REP: {
-			APP_DBG_SIG("GW_CLOUD_MESSAGE_LENGTH_OUT_OF_RANGE_REP\n");
-
-		} break;
-
 		case GW_CLOUD_CHECK_BROKER_STATUS_REQ: {
 			APP_DBG_SIG("GW_CLOUD_CHECK_BROKER_STATUS_REQ\n");
 			try {
@@ -371,15 +352,14 @@ void *gw_task_cloud_entry(void *) {
 				else {
 					netJs["Wifi"]["Status"] = "Disconnected";
 				}
-				APP_DBG_MQTT("net json: %s\n", netJs.dump().data());
 				stt_msg["Data"]["Network"] = netJs;
 
 				/* get offline detect */
 				json reasonsOfflineJs = json::array();
 				offlineEventManager.getErrorReason(reasonsOfflineJs);
 				stt_msg["Data"]["ErrorReason"] = reasonsOfflineJs;
-				APP_DBG_MQTT("offline detect json: %s\n", reasonsOfflineJs.dump().data());
-				APP_DBG_MQTT("status json: %s\n", stt_msg.dump().data());
+				// APP_DBG_MQTT("offline detect json: %s\n", reasonsOfflineJs.dump().data());
+				// APP_DBG_MQTT("status json: %s\n", stt_msg.dump().data());
 
 				task_post_dynamic_msg(GW_TASK_CLOUD_ID, GW_CLOUD_CAMERA_STATUS_RES, (uint8_t *)stt_msg.dump().data(), stt_msg.dump().length() + 1);
 			}

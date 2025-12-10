@@ -48,7 +48,7 @@ void MOTORS_H_AND_V::initialise(
 	FCA_PTZ_CB_PARAM cb;
     cb.fca_ptz_get_saved_pos_cb = afterGettingPosition;
     cb.fca_ptz_set_saved_pos_cb = afterSettingPosition;
-	FCA_API_ASSERT(fca_ptz_init(&cb) == 0);
+	fca_ptz_init(&cb);
 
 	/* Set high speed for initialization when camera boot up */
 	FCA_API_ASSERT(fca_ptz_set_speed_h(TURN_SPEED_HIGH) == 0);

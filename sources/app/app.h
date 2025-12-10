@@ -72,10 +72,12 @@ enum {
 /* define signal */
 enum {
 	GW_CLOUD_WATCHDOG_PING_REQ = AK_USER_WATCHDOG_SIG,
-	GW_CLOUD_MQTT_INIT_REQ	   = AK_USER_DEFINE_SIG,
+	GW_CLOUD_MQTT_INIT_REQ = AK_USER_DEFINE_SIG,
 	GW_CLOUD_MQTT_TRY_CONNECT_REQ,
 	GW_CLOUD_MQTT_CHECK_CONNECT_STATUS_REQ,
-	GW_CLOUD_DATA_COMMUNICATION,
+	GW_CLOUD_PROCESS_INCOME_DATA,
+	GW_CLOUD_MQTT_ON_CONNECTED,
+	GW_CLOUD_MQTT_ON_DISCONNECTED,
 	GW_CLOUD_SET_MQTT_CONFIG_REQ,
 	GW_CLOUD_GET_MQTT_CONFIG_REQ,
 	GW_CLOUD_CAMERA_STATUS_RES,
@@ -474,17 +476,17 @@ enum {
 #define FCA_SSL_VERIFY_NONE 0
 #define FCA_SSL_VERIFY_PEER 1
 
-#define FCA_SOUND_REBOOT_DEVICE_FILE	   FCA_DEVICE_SOUND_PATH "/reboot_device.pcm"
-#define FCA_SOUND_WAIT_CONNECT_FILE		   FCA_DEVICE_SOUND_PATH "/waiting_for_connection.pcm"
-#define FCA_SOUND_HELLO_DEVICE_FILE		   FCA_DEVICE_SOUND_PATH "/hello_fpt_camera.pcm"
-#define FCA_SOUND_NET_CONNECT_SUCCESS_FILE FCA_DEVICE_SOUND_PATH "/connection_success.pcm"
-#define FCA_SOUND_MOTION_ALARM_FILE		   FCA_DEVICE_SOUND_PATH "/motion_alarm.pcm"
+#define FCA_SOUND_REBOOT_DEVICE_FILE	   "reboot_device.pcm"
+#define FCA_SOUND_WAIT_CONNECT_FILE		   "waiting_for_connection.pcm"
+#define FCA_SOUND_HELLO_DEVICE_FILE		   "hello_fpt_camera.pcm"
+#define FCA_SOUND_NET_CONNECT_SUCCESS_FILE "connection_success.pcm"
+#define FCA_SOUND_MOTION_ALARM_FILE		   "motion_alarm.pcm"
 
-#define FCA_SOUND_CHANGE_WIFI_MODE_FILE	   FCA_DEVICE_SOUND_PATH "/wifi_mode.pcm"
-#define FCA_SOUND_CHANGE_BLE_MODE_FILE	   FCA_DEVICE_SOUND_PATH "/ble_mode.pcm"
-#define FCA_SOUND_BLE_CONNECTED_FILE	   FCA_DEVICE_SOUND_PATH "/ble_connected.pcm"
-#define FCA_SOUND_BLE_DISCONNECTED_FILE	   FCA_DEVICE_SOUND_PATH "/ble_disconnected.pcm"
-#define FCA_SOUND_WAIT_SWITCH_MODE_FILE	   FCA_DEVICE_SOUND_PATH "/switch_connection_method.pcm"
+#define FCA_SOUND_CHANGE_WIFI_MODE_FILE	   "wifi_mode.pcm"
+#define FCA_SOUND_CHANGE_BLE_MODE_FILE	   "ble_mode.pcm"
+#define FCA_SOUND_BLE_CONNECTED_FILE	   "ble_connected.pcm"
+#define FCA_SOUND_BLE_DISCONNECTED_FILE	   "ble_disconnected.pcm"
+#define FCA_SOUND_WAIT_SWITCH_MODE_FILE	   "switch_connection_method.pcm"
 
 #define FCA_RECORD_S3_MOTION_FILE "motion.mp4"
 #define FCA_IMAGE_S3_MOTION_FILE  "motion.jpeg"
@@ -493,11 +495,15 @@ extern std::string deviceSerialNumber;
 extern std::string defaultConfigurationPath;
 extern std::string vendorsConfigurationPath;
 
-extern std::string wiFiSsid;
-extern std::string wiFiPssk;
+extern std::string vendorsHostapdSsid;
+extern std::string vendorsHostapdPssk;
 
 inline std::string FCA_DEFAULT_FILE_LOCATE(const std::string filename) {
-    return std::string(defaultConfigurationPath + "/" + filename);
+    return std::string(defaultConfigurationPath + "/default/" + filename);
+}
+
+inline std::string FCA_DEFAULT_SOUND_LOCATE(const std::string filename) {
+    return std::string(defaultConfigurationPath + "/sound/" + filename);
 }
 
 inline std::string FCA_VENDORS_FILE_LOCATE(const std::string filename) {
