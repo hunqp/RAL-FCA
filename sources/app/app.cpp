@@ -114,22 +114,23 @@ void task_init(const char *params) {
 
 	// motors.initialise(NULL, NULL);
 
-	// char mac[17] = {0}, ssid[32] = {0}, pass[32] = {0};
-	// fca_netWifiAPGenInfo(mac, MAX_MAC_LEN, ssid, pass);
-	// std::string ble_ssid;
-	// char chars[64] = {0};
-	// snprintf(chars, sizeof(chars), "%s-%s-%s", "FC", "I04L", deviceSerialNumber.c_str());
-	// ble_ssid.assign(std::string(chars));
-	// std::transform(ble_ssid.begin(), ble_ssid.end(), ble_ssid.begin(), ::toupper);
-	// int rc = fca_bluetooth_start(deviceSerialNumber.c_str(), ble_ssid.c_str(), pass);
-	// if (rc != 0) {
-	// 	SYSE("Can't start bluetooth mode\r\n");
-	// }
-	// else APP_PRINT("Bluetooth mode has started SN {%s}, SSID {%s}, PSSK {%s}\r\n", deviceSerialNumber.c_str(), ssid, pass);
+	char mac[17] = {0}, ssid[32] = {0}, pass[32] = {0};
+	fca_netWifiAPGenInfo(mac, MAX_MAC_LEN, ssid, pass);
+	std::string ble_ssid;
+	char chars[64] = {0};
+	snprintf(chars, sizeof(chars), "%s-%s-%s", "FC", "I04L", deviceSerialNumber.c_str());
+	ble_ssid.assign(std::string(chars));
+	std::transform(ble_ssid.begin(), ble_ssid.end(), ble_ssid.begin(), ::toupper);
+	int rc = fca_bluetooth_start(deviceSerialNumber.c_str(), ble_ssid.c_str(), pass);
+	if (rc != 0) {
+		SYSE("Can't start bluetooth mode\r\n");
+	}
+	else APP_PRINT("Bluetooth mode has started SN {%s}, SSID {%s}, PSSK {%s}\r\n", deviceSerialNumber.c_str(), ssid, pass);
+	// ral_bluetooth_start();
 
-	// while (1) {
-	// 	sleep(1);
-	// }
+	while (1) {
+		sleep(1);
+	}
 	// // testFuncs();
 
 	// // create folder save jpeg motion tmp

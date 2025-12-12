@@ -1,0 +1,272 @@
+#include "fca_bluetooth.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+#include "json.hpp"
+#include "app.h"
+#include "app_data.h"
+#include "app_config.h"
+#include "timer.h"
+#include "task_list.h"
+#include "fca_parameter.hpp"
+#include <openssl/sha.h>
+#include "wifi.h"
+
+#include "fca_assert.hpp"
+#include "odm_api_ble.h"
+#include "odm_api_network.h"
+#include "odm_api_system.h"
+#include "odm_api_factory.h"
+// #include "queue_client.h"
+
+#define TEST_BLE_SERVICE_PATH "/usr/bin/blh/ble_userconfig.json"
+#define TEST_DEVICE_NAME "TEST-BLE-Device"
+#define TEST_ADV_DATA "TEST-ADV"
+#define TEST_SCAN_RSP "TEST-SCAN"
+#define TEST_NOTIFY_DATA "NOTIFY-TEST"
+#define TEST_READ_DATA "READ-TEST"
+
+// Global variable to simulate bleMessage
+typedef struct
+{
+    fca_ble_data_buf_t adv;
+    fca_ble_data_buf_t scan;
+    fca_ble_data_buf_t notify;
+    fca_ble_data_buf_t read;
+} TestBleMsg_t;
+
+TestBleMsg_t testBleMsg;
+
+uint8_t testAdvData[] = {0x02, 0x01, 0x06, 0x18, 0x09, 'F', 'C', '-', 'P', '0', '4', 'L', '-', 'C', '0', '5', 'I', '2', '4', '1', '0', '0', '0', '0', '0', '0', '0', '2'};
+uint8_t testScanData[] = {0x11, 0x07, 0x00, 0x00, 0xFE, 0xE7, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB};
+uint8_t notifySuccessMsg[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'C', 'O', 'N', 'F', 'I', 'G', '_', 'O', 'K'};
+uint8_t notifyFailMsg[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'C', 'O', 'N', 'F', 'I', 'G', '-', 'F', 'A', 'I', 'L'};
+uint8_t testReadData[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'H', 'e', 'l', 'l', 'o'};
+
+// Test event callback function
+void test_ble_event_callback(FCA_BLE_EVT_CB ble_evt, fca_ble_data_buf_t *data)
+{
+    printf("[TEST] BLE Event: %d\n", ble_evt);
+    int ret = 0;
+    switch (ble_evt)
+    {
+    case FCA_BLE_INIT_DONE:
+    {
+        printf("[TEST] BLE initialization completed, starting to set device name...\n");
+        // Set device name
+        uint8_t devName[] = TEST_DEVICE_NAME;
+        char ssidBle[32] = "FC-P04L-C05I24100000002";
+        ret = fca_ble_gap_name_set_msg_send((uint8_t *)ssidBle, strlen(ssidBle));
+        if (ret != 0)
+        {
+            printf("[TEST] Failed to set device name,ret:%d\n", ret);
+            return;
+        }
+        printf("[TEST] Device name set successfully: %s\n", ssidBle);
+        // Set advertising and scan response data
+        if (fca_ble_gap_adv_rsp_data_set(&testBleMsg.adv, &testBleMsg.scan) != 0)
+        {
+            printf("[TEST] Failed to set advertising data\n");
+            return;
+        }
+        printf("[TEST] Advertising data set successfully\n");
+
+        // Update readable characteristic value
+        if (fca_ble_gatts_value_read_update(&testBleMsg.read) != 0)
+        {
+            printf("[TEST] Failed to update readable data\n");
+            return;
+        }
+        printf("[TEST] Readable data updated successfully\n");
+
+        // Start advertising
+        if (fca_ble_gap_adv_start(&testBleMsg.adv) != 0)
+        {
+            printf("[TEST] Failed to start advertising\n");
+            return;
+        }
+        printf("[TEST] Advertising started successfully\n");
+    }
+    break;
+
+    case FCA_BLE_ADV_ENABLE:
+    {
+        printf("[TEST] Advertising enabled, sending test notification...\n");
+    }
+    break;
+
+    case FCA_BLE_SMARTCONFIG_DATA_RECV:
+    {
+        if (data && data->len > 0 && data->data)
+        {
+            printf("[TEST] Received data (len=%d): ", data->len);
+            for (int i = 0; i < data->len; i++)
+            {
+                printf("%02X ", data->data[i]);
+            }
+            printf("\n");
+
+            // 1. conidx
+            if (data->len < 1)
+            {
+                printf("[TEST] Data too short for conidx\n");
+                break;
+            }
+            uint8_t conidx = data->data[0];
+            printf("[TEST] conidx: 0x%02X\n", conidx);
+
+            // 2. uuid
+            if (data->len < 1 + 16)
+            {
+                printf("[TEST] Data too short for UUID\n");
+                break;
+            }
+            uint8_t uuid[16];
+            memcpy(uuid, &data->data[1], 16);
+            printf("[TEST] UUID: ");
+            for (int i = 0; i < 16; i++)
+            {
+                printf("%02X ", uuid[i]);
+            }
+            printf("\n");
+
+            // 3. data
+            uint16_t data_content_len = data->len - (1 + 16);
+            if (data_content_len <= 0)
+            {
+                printf("[TEST] No content data available\n");
+                break;
+            }
+            uint8_t tmp_data[32] = {0};
+            uint16_t copy_len = (data_content_len < 32) ? data_content_len : 31;
+            memcpy(tmp_data, &data->data[1 + 16], copy_len);
+            printf("[TEST] Content data: %s\n", tmp_data);
+
+            // if (strcmp(tmp_data, "aaa") == 0)
+            // {
+            //     fca_ble_data_buf_t notify_data = {
+            //         .data = notifySuccessMsg,
+            //         .len = sizeof(notifySuccessMsg)};
+
+            //     if (fca_ble_gatts_value_notify(&notify_data) != 0)
+            //     {
+            //         printf("[TEST] Failed to send notification\n");
+            //     }
+            //     else
+            //     {
+            //         printf("[TEST] Notification sent successfully\n");
+            //     }
+            // }
+            // else
+            // {
+            //     fca_ble_data_buf_t notify_data = {
+            //         .data = notifyFailMsg,
+            //         .len = sizeof(notifyFailMsg)};
+
+            //     if (fca_ble_gatts_value_notify(&notify_data) != 0)
+            //     {
+            //         printf("[TEST] Failed to send notification\n");
+            //     }
+            //     else
+            //     {
+            //         printf("[TEST] Notification sent successfully\n");
+            //     }
+            // }
+        }
+    }
+    break;
+
+    case FCA_BLE_CONNECTION_IND:
+        printf("[TEST] BLE connection established\n");
+        break;
+
+    case FCA_BLE_DISCONNECTED:
+    {
+        printf("[TEST] BLE connection disconnected\n");
+        // if (fca_ble_gap_adv_stop() != 0)
+        // {
+        //     printf("[TEST] stop adv failed\n");
+        // }
+        // else
+        // {
+        //     printf("[TEST] Test stop adv successfully\n");
+        // }
+        // fca_ble_deinit();
+        // printf("[TEST] fca_ble_deinit\n");
+    }
+    break;
+
+    default:
+    {
+    }
+    break;
+    }
+}
+
+// Initialize test message structure
+void init_test_ble_message()
+{
+    // Initialize advertising data
+    testBleMsg.adv.data = testAdvData;
+    testBleMsg.adv.len = sizeof(testAdvData);
+
+    // Initialize scan response data
+    testBleMsg.scan.data = testScanData;
+    testBleMsg.scan.len = sizeof(testScanData);
+
+    testBleMsg.read.data = testReadData;
+    testBleMsg.read.len = sizeof(testReadData);
+}
+
+// BLE workflow test function
+int test_ble_workflow()
+{
+    int ret = -1;
+    printf("\n===== Starting BLE workflow test =====\n");
+
+    // 1. Initialize test messages
+    init_test_ble_message();
+    printf("[TEST] Test messages initialized successfully\n");
+
+    // 2. Set BLE service configuration file
+    ret = fca_ble_service_set(TEST_BLE_SERVICE_PATH);
+    if (ret != 0)
+    {
+        printf("[TEST] Failed to set service configuration, error code: %d\n", ret);
+        return ret;
+    }
+    printf("[TEST] Service configuration set successfully\n");
+
+    // // 3. Load BLE driver
+    ret = fca_ble_insmod_driver();
+    if (ret != 0)
+    {
+        printf("[TEST] Failed to load driver, error code: %d\n", ret);
+        return ret;
+    }
+    printf("[TEST] BLE driver loaded successfully\n");
+
+    // 4. Initialize BLE stack
+    ret = fca_ble_stack_init(test_ble_event_callback);
+    if (ret != 0)
+    {
+        printf("[TEST] Failed to initialize BLE stack, error code: %d\n", ret);
+        return ret;
+    }
+    printf("[TEST] BLE stack initialized successfully\n");
+
+    printf("===== BLE workflow test completed =====\n");
+    return 0;
+}
+
+int fca_bluetooth_start(const char *sn, const char *ssid, const char *pssk)
+{
+    test_ble_workflow();
+    return 0;
+}
+
+int fca_bluetooth_close(void)
+{
+    return 0;
+}

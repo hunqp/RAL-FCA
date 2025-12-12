@@ -171,7 +171,7 @@
 #define KCYN "\x1B[36m"
 #define KWHT "\x1B[37m"
 
-#define APP_DEBUG_EN	( 0 )
+#define APP_DEBUG_EN	( 1 )
 #define APP_WARNI_EN   	( 1 )
 #define APP_PRINT_EN    ( 1 )
 #define APP_ERROR_EN	( 1 )
