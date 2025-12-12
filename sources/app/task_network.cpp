@@ -84,6 +84,10 @@ void *gw_task_network_entry(void *) {
 		APP_PRINT("Network time has updated: %s\r\n", datetime);
 	});
 
+	ntpd.onDoUpdateFailure([](char *domain, char* err) {
+		APP_WARN("Time server %s update time failed -> %s", domain, err);
+	});
+
 	task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_NETWORK_INIT_REQ);
 
 	while (1) {
@@ -114,7 +118,6 @@ void *gw_task_network_entry(void *) {
 				bSelectedBLE = false;
 				task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTAPD);
 				#endif
-				task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTAPD);
 			}
 			else {
 				task_post_dynamic_msg(GW_TASK_NETWORK_ID, GW_NET_WIFI_DO_CONNECT, (uint8_t *)&wiFiSettings, sizeof(wiFiSettings));
@@ -558,10 +561,10 @@ void *gw_task_network_entry(void *) {
 		case GW_NET_RESET_WIFI_REQ: {
 			APP_DBG_SIG("GW_NET_RESET_WIFI_REQ\n");
 
-			string path = FCA_USER_CONF_PATH "/" FCA_WIFI_FILE;
+			string path = FCA_VENDORS_FILE_LOCATE(FCA_WIFI_FILE);
 			remove(path.c_str());	 // remove wifi setting
 			#if SUPPORT_ETH
-			path = FCA_USER_CONF_PATH "/" FCA_ETHERNET_FILE;
+			path = FCA_VENDORS_FILE_LOCATE(FCA_ETHERNET_FILE);
 			remove(path.c_str());	 // remove eth setting
 			#endif
 

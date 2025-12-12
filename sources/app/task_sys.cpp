@@ -414,14 +414,14 @@ void *gw_task_sys_entry(void *) {
 			APP_DBG_SIG("GW_SYS_GET_CA_FILE_REQ\n");
 			sysThread.dispatch([]() {
 				json cfgJs;
-				string linkPath = FCA_DFAUL_CONF_PATH "/" FCA_LINKS_FILE;
+				string linkPath = FCA_DEFAULT_FILE_LOCATE(FCA_LINKS_FILE);
 				if (read_json_file(cfgJs, linkPath)) {
 					try {
 						string link = cfgJs["SslCaLink"].get<string>();
 						if (download_file(link, CA_FILE_DOWNLOAD_PATH, 10)) {
 							APP_DBG("download file CA success\n");
-							systemCmd("cp -f %s %s", CA_FILE_DOWNLOAD_PATH, FCA_USER_CONF_PATH "/" FCA_NETWORK_CA_FILE);
-							caSslPath = FCA_USER_CONF_PATH "/" FCA_NETWORK_CA_FILE;
+							systemCmd("cp -f %s %s", CA_FILE_DOWNLOAD_PATH, FCA_VENDORS_FILE_LOCATE(FCA_NETWORK_CA_FILE).c_str());
+							caSslPath = FCA_VENDORS_FILE_LOCATE(FCA_NETWORK_CA_FILE);
 							task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_TRY_CONNECT_REQ);
 							task_post_pure_msg(GW_TASK_UPLOAD_ID, GW_UPLOAD_INIT_REQ);
 							remove(CA_FILE_DOWNLOAD_PATH);

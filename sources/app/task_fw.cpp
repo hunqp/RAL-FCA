@@ -143,7 +143,7 @@ void *gw_task_fw_entry(void *) {
 					APP_DBG_OTA(TAG "download firmware failed\n");
 					ret = FCA_OTA_STATE_DL_FAIL;
 				}
-				systemCmd("echo %d > %s/%s", ret, FCA_USER_CONF_PATH, FCA_OTA_STATUS);
+				systemCmd("echo %d > %s/%s", ret, vendorsConfigurationPath, FCA_OTA_STATUS);
 				task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_GEN_MQTT_STATUS_REQ);
 				
 				if (ret != FCA_OTA_STATE_DL_SUCCESS) {
@@ -173,7 +173,7 @@ void *gw_task_fw_entry(void *) {
 				task_post_pure_msg(GW_TASK_SYS_ID, GW_SYS_REBOOT_REQ);
 			}
 			else {
-				systemCmd("echo 1 > %s/%s", FCA_USER_CONF_PATH, FCA_OTA_STATUS);
+				systemCmd("echo 1 > %s/%s", vendorsConfigurationPath, FCA_OTA_STATUS);
 				timer_set(GW_TASK_FW_ID, GW_FW_RELEASE_OTA_STATE_REQ, GW_FW_UPGRADE_FIRMWARE_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);	   // idle state OTA after 5min
 			}
 

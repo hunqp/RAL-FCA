@@ -79,7 +79,7 @@ int fca_configGetDeviceInfoStr(json &devInfoJs) {
 
 int fca_configGetUpgradeStatus(json &dataJs) {
 	string content;
-	string filePath = FCA_USER_CONF_PATH "/" FCA_OTA_STATUS;
+	string filePath = FCA_VENDORS_FILE_LOCATE(FCA_OTA_STATUS);
 	if (!read_raw_file(content, filePath)) {
 		APP_DBG("Can not read: %s\n", filePath.data());
 		return APP_CONFIG_ERROR_FILE_OPEN;
@@ -93,7 +93,7 @@ int fca_configGetUpgradeStatus(json &dataJs) {
 int fca_configSetMQTT(FCA_MQTT_CONN_S *mqttCfg) {
 	json mqttJs;
 	if (fca_jsonSetNetMQTT(mqttJs, mqttCfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_NETWORK_MQTT_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_NETWORK_MQTT_FILE);
 		if (write_json_file(mqttJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -144,7 +144,7 @@ int fca_configGetRtcServers(rtcServersConfig_t *rtcServerCfg) {
 }
 
 int fca_configSetRtcServers(const json &rtcSvCfg) {
-	string filePath = FCA_USER_CONF_PATH "/" FCA_RTC_SERVERS_FILE;
+	string filePath = FCA_VENDORS_FILE_LOCATE(FCA_RTC_SERVERS_FILE);
 	if (write_json_file(rtcSvCfg, filePath))
 		return APP_CONFIG_SUCCESS;
 	else {
@@ -156,7 +156,7 @@ int fca_configSetRtcServers(const json &rtcSvCfg) {
 int fca_configSetMotion(fca_motionSetting_t *motionCfg) {
 	json motionJs;
 	if (fca_jsonSetMotion(motionJs, motionCfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_MOTION_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_MOTION_FILE);
 		if (write_json_file(motionJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -174,7 +174,7 @@ int fca_configGetMotion(fca_motionSetting_t *motionCfg) {
 	int ret = APP_CONFIG_ERROR_ANOTHER;
 	json usrCfg;
 	string fileName = FCA_MOTION_FILE;
-	string filePath = FCA_USER_CONF_PATH + string("/") + fileName;
+	string filePath = vendorsConfigurationPath + string("/") + fileName;
 	if (read_json_file(usrCfg, filePath)) {
 		ret = fca_jsonGetMotion(usrCfg, motionCfg);
 		if (ret == APP_CONFIG_SUCCESS) {
@@ -184,7 +184,7 @@ int fca_configGetMotion(fca_motionSetting_t *motionCfg) {
 
 	if (ret != APP_CONFIG_SUCCESS) {
 		json defCfg;
-		filePath = FCA_DFAUL_CONF_PATH + string("/") + fileName;
+		filePath = defaultConfigurationPath + string("/") + fileName;
 		if (read_json_file(defCfg, filePath)) {
 			if (fca_jsonGetMotion(defCfg, motionCfg) == APP_CONFIG_SUCCESS) {
 				// TODO
@@ -199,7 +199,7 @@ int fca_configGetMotion(fca_motionSetting_t *motionCfg) {
 int fca_configSetEncode(FCA_ENCODE_S *encodeCfg) {
 	json encodeJs;
 	if (fca_jsonSetEncode(encodeJs, encodeCfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_ENCODE_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_ENCODE_FILE);
 		if (write_json_file(encodeJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -234,7 +234,7 @@ int fca_configGetEncode(FCA_ENCODE_S *encodeCfg) {
 int fca_configSetParam(fca_cameraParam_t *paramCfg) {
 	json paramJs;
 	if (fca_jsonSetParam(paramJs, paramCfg)) {
-		string file = FCA_USER_CONF_PATH "/" FCA_CAMERA_PARAM_FILE;
+		string file = FCA_VENDORS_FILE_LOCATE(FCA_CAMERA_PARAM_FILE);
 		if (write_json_file(paramJs, file))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -252,7 +252,7 @@ int fca_configGetParam(fca_cameraParam_t *paramCfg) {
 	int ret = APP_CONFIG_ERROR_ANOTHER;
 	json usrCfg;
 	string fileName = FCA_CAMERA_PARAM_FILE;
-	string filePath = FCA_USER_CONF_PATH + string("/") + fileName;
+	string filePath = vendorsConfigurationPath + string("/") + fileName;
 	if (read_json_file(usrCfg, filePath)) {
 		ret = fca_jsonGetParam(usrCfg, paramCfg);
 		if (ret == APP_CONFIG_SUCCESS) {
@@ -262,7 +262,7 @@ int fca_configGetParam(fca_cameraParam_t *paramCfg) {
 
 	if (ret != APP_CONFIG_SUCCESS) {
 		json defCfg;
-		filePath = FCA_DFAUL_CONF_PATH + string("/") + fileName;
+		filePath = defaultConfigurationPath + string("/") + fileName;
 		if (read_json_file(defCfg, filePath)) {
 			// APP_DBG("Default param config: %s\n", defCfg.dump().data());
 			if (fca_jsonGetParam(defCfg, paramCfg) == APP_CONFIG_SUCCESS) {	   // WRD02: v1.1.0 - v1.2.0 missing json key
@@ -289,7 +289,7 @@ int fca_configGetParam(fca_cameraParam_t *paramCfg) {
 					usrCfg["LockCntTh"]				 = paramCfg->dnParam.lockCntTh;
 					usrCfg["LockTime"]				 = paramCfg->dnParam.lockTime;
 
-					filePath = FCA_USER_CONF_PATH + string("/") + fileName;
+					filePath = vendorsConfigurationPath + string("/") + fileName;
 					write_json_file(usrCfg, filePath);
 					fca_jsonGetParam(usrCfg, paramCfg);
 				}
@@ -304,7 +304,7 @@ int fca_configGetParam(fca_cameraParam_t *paramCfg) {
 int fca_configSetWifi(FCA_NET_WIFI_S *wifiCfg) {
 	json wifiJs;
 	if (fca_jsonSetWifi(wifiJs, wifiCfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_WIFI_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_WIFI_FILE);
 		if (write_json_file(wifiJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -339,7 +339,7 @@ int fca_configGetWifi(FCA_NET_WIFI_S *wifiCfg) {
 int fca_configSetEthernet(fca_netEth_t *ethCfg) {
 	json wifiJs;
 	if (fca_jsonSetEthernet(wifiJs, ethCfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_ETHERNET_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_ETHERNET_FILE);
 		if (write_json_file(wifiJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -374,7 +374,7 @@ int fca_configGetEthernet(fca_netEth_t *ethCfg) {
 int fca_configSetRTMP(fca_rtmp_t *rtmpCfg) {
 	json rtmpJs;
 	if (fca_jsonSetRTMP(rtmpJs, rtmpCfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_RTMP_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_RTMP_FILE);
 		if (write_json_file(rtmpJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -409,7 +409,7 @@ int fca_configGetRTMP(fca_rtmp_t *rtmpCfg) {
 int fca_configSetWatermark(FCA_OSD_S *watermarkCfg) {
 	json watermarkJs;
 	if (fca_jsonSetWatermark(watermarkJs, watermarkCfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_WATERMARK_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_WATERMARK_FILE);
 		if (write_json_file(watermarkJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -444,7 +444,7 @@ int fca_configGetWatermark(FCA_OSD_S *watermarkCfg) {
 int fca_configSetS3(fca_s3_t *s3Cfg) {
 	json s3Js;
 	if (fca_jsonSetS3(s3Js, s3Cfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_S3_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_S3_FILE);
 		if (write_json_file(s3Js, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -479,7 +479,7 @@ int fca_configGetS3(fca_s3_t *s3Cfg) {
 int fca_configSetS3BucketSetting(fca_s3_t *s3Cfg) {
 	json s3Js;
 	if (fca_jsonSetS3(s3Js, s3Cfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_BUCKET_SETTING_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_BUCKET_SETTING_FILE);
 		if (write_json_file(s3Js, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -514,7 +514,7 @@ int fca_configGetS3BucketSetting(fca_s3_t *s3Cfg) {
 int fca_configSetAccount(fca_account_t *accountCfg) {
 	json accountJs;
 	if (fca_jsonSetAccount(accountJs, accountCfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_ACCOUNT_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_ACCOUNT_FILE);
 		if (write_json_file(accountJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -565,7 +565,7 @@ int fca_configGetSysInfo(fca_sysInfo_t *sysInfo) {
 int fca_configSetAlarmControl(fca_alarmControl_t *alarmCtl) {
 	json alarmJs;
 	if (fca_jsonSetAlarmControl(alarmJs, alarmCtl)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_ALARM_CONTROL_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_ALARM_CONTROL_FILE);
 		if (write_json_file(alarmJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -616,7 +616,7 @@ int fca_configSetDeviceAuth(devAuth_t *info) {
 	devAuth_t enInfo;
 	logInfoEncryptDecrypt(info, &enInfo, xorKey);
 	if (fca_jsonSetDeviceAuth(cfgJs, &enInfo)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_DEVICE_LOGIN_INFO_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_DEVICE_LOGIN_INFO_FILE);
 		if (write_json_file(cfgJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -633,7 +633,7 @@ int fca_configSetDeviceAuth(devAuth_t *info) {
 int fca_configGetDeviceAuth(devAuth_t *info) {
 	json cfgJs;
 
-	string filePath = FCA_USER_CONF_PATH + string("/") + FCA_DEVICE_LOGIN_INFO_FILE;
+	string filePath = FCA_VENDORS_FILE_LOCATE(FCA_DEVICE_LOGIN_INFO_FILE);
 	if (!read_json_file(cfgJs, filePath)) {
 		APP_DBG("Can not read: %s\n", filePath.data());
 		return APP_CONFIG_ERROR_FILE_OPEN;
@@ -655,7 +655,7 @@ int fca_configGetDeviceAuth(devAuth_t *info) {
 int fca_configSetSystemControls(systemCtrls_t *sysCtrls) {
 	json sysCtrlsJs;
 	if (fca_jsonSetSystemControls(sysCtrlsJs, sysCtrls)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_SYSTEM_CONTROLS_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_SYSTEM_CONTROLS_FILE);
 		if (write_json_file(sysCtrlsJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -673,7 +673,7 @@ int fca_configGetSystemControls(systemCtrls_t *sysCtrls) {
 	int ret = APP_CONFIG_ERROR_ANOTHER;
 	// json usrCfg;
 	// string fileName = FCA_SYSTEM_CONTROLS_FILE;
-	// string filePath = FCA_USER_CONF_PATH + string("/") + fileName;
+	// string filePath = vendorsConfigurationPath + string("/") + fileName;
 	// if (read_json_file(usrCfg, filePath)) {
 	// 	ret = fca_jsonGetSystemControls(usrCfg, sysCtrls);
 	// 	if (ret == APP_CONFIG_SUCCESS) {
@@ -683,7 +683,7 @@ int fca_configGetSystemControls(systemCtrls_t *sysCtrls) {
 
 	// if (ret != APP_CONFIG_SUCCESS) {
 	// 	json defCfg;
-	// 	filePath = FCA_DFAUL_CONF_PATH + string("/") + fileName;
+	// 	filePath = defaultConfigurationPath + string("/") + fileName;
 	// 	if (read_json_file(defCfg, filePath)) {
 	// 		APP_DBG("Default param config: %s\n", defCfg.dump().c_str());
 	// 		int res = fca_jsonGetSystemControls(defCfg, sysCtrls);
@@ -724,7 +724,7 @@ int fca_configGetSystemControls(systemCtrls_t *sysCtrls) {
 
 	// 				usrCfg[SYSTEM_CONTROL_AUDIO_EQ] = audioEQJson;
 
-	// 				filePath = FCA_USER_CONF_PATH + string("/") + fileName;
+	// 				filePath = vendorsConfigurationPath + string("/") + fileName;
 	// 				APP_DBG_AUDIO("User param config: %s\n", usrCfg.dump().data());
 	// 				write_json_file(usrCfg, filePath);
 	// 				fca_jsonGetSystemControls(usrCfg, sysCtrls);
@@ -741,7 +741,7 @@ int fca_configGetSystemControls(systemCtrls_t *sysCtrls) {
 int fca_configSetP2P(int *p2pCfg) {
 	json cfgJs;
 	if (fca_jsonSetP2P(cfgJs, p2pCfg)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_P2P_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_P2P_FILE);
 		if (write_json_file(cfgJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -773,7 +773,7 @@ int fca_configGetP2P(int *p2pCfg) {
 }
 
 int fca_configSetTZ(const string &timezone) {
-	string filePath = FCA_USER_CONF_PATH "/" FCA_TIMEZONE_FILE;
+	string filePath = FCA_VENDORS_FILE_LOCATE(FCA_TIMEZONE_FILE);
 	if (!write_raw_file(timezone, filePath)) {
 		APP_DBG("set TZ config failed\n");
 		return APP_CONFIG_ERROR_FILE_OPEN;
@@ -782,10 +782,10 @@ int fca_configSetTZ(const string &timezone) {
 }
 
 int fca_configGetTZ(string &timezone) {
-	string filePath = FCA_USER_CONF_PATH "/" FCA_TIMEZONE_FILE;
+	string filePath = FCA_VENDORS_FILE_LOCATE(FCA_TIMEZONE_FILE);
 	if (!read_raw_file(timezone, filePath)) {
 		APP_DBG("read %s failed\n", filePath.data());
-		filePath = FCA_DFAUL_CONF_PATH "/" FCA_TIMEZONE_FILE;
+		filePath = FCA_DEFAULT_FILE_LOCATE(FCA_TIMEZONE_FILE);
 		if (!read_raw_file(timezone, filePath)) {
 			APP_DBG("read %s failed\n", filePath.data());
 			return APP_CONFIG_ERROR_FILE_OPEN;
@@ -798,7 +798,7 @@ int fca_configGetTZ(string &timezone) {
 int fca_configSetOnvif(bool *enable) {
 	json cfgJs;
 	if (fca_jsonSetOnvif(cfgJs, enable)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_ONVIF_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_ONVIF_FILE);
 		if (write_json_file(cfgJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {
@@ -830,109 +830,111 @@ int fca_configGetOnvif(bool *enable) {
 }
 
 int fca_configSetOnvifSetting(fca_onvif_setting_t *onvifSetting) {
-	json Js;
-	fca_sysInfo_t sysInfo;
-	FCA_ENCODE_S videEncode;
+	// json Js;
+	// fca_sysInfo_t sysInfo;
+	// FCA_ENCODE_S videEncode;
 
-	fca_configGetSysInfo(&sysInfo);
-	fca_configGetEncode(&videEncode);
+	// fca_configGetSysInfo(&sysInfo);
+	// fca_configGetEncode(&videEncode);
 
-	Js["Port"]		 = onvifSetting->port;
-	Js["Username"]	 = onvifSetting->username;
-	Js["Password"]	 = onvifSetting->password;
-	Js["Interfaces"] = onvifSetting->interfaces;
-	Js["Location"]	 = onvifSetting->location;
-	Js["Name"]		 = onvifSetting->name;
+	// Js["Port"]		 = onvifSetting->port;
+	// Js["Username"]	 = onvifSetting->username;
+	// Js["Password"]	 = onvifSetting->password;
+	// Js["Interfaces"] = onvifSetting->interfaces;
+	// Js["Location"]	 = onvifSetting->location;
+	// Js["Name"]		 = onvifSetting->name;
 
-	/* Non-Modification Configuration */
-	Js["SN"]					 = fca_getSerialInfo();
-	Js["Fw"]					 = sysInfo.softVersion;
-	Js["Hw"]					 = "1.0.0";
-	Js["Model"]					 = "IPC";
-	Js["Manufacturer"]			 = "FCA";
-	Js["AdvancedFaultIfUnknown"] = 0;
-	Js["AdvancedSynologyNvr"]	 = 0;
+	// /* Non-Modification Configuration */
+	// Js["SN"]					 = fca_getSerialInfo();
+	// Js["Fw"]					 = sysInfo.softVersion;
+	// Js["Hw"]					 = "1.0.0";
+	// Js["Model"]					 = "IPC";
+	// Js["Manufacturer"]			 = "FCA";
+	// Js["AdvancedFaultIfUnknown"] = 0;
+	// Js["AdvancedSynologyNvr"]	 = 0;
 
-	Js["Events"][0]["Input"] = "/tmp/onvif_noti_motion";
-	Js["Events"][0]["Name"]	 = "VideoSourceConfigurationToken";
-	Js["Events"][0]["Topic"] = "tns1:VideoSource/MotionDetected";
-	Js["Events"][0]["Value"] = "VideoSourceToken";
-	Js["Events"][1]["Input"] = "/tmp/onvif_noti_human";
-	Js["Events"][1]["Name"]	 = "VideoSourceConfigurationToken";
-	Js["Events"][1]["Topic"] = "tns1:VideoSource/HumanDetected";
-	Js["Events"][1]["Value"] = "VideoSourceToken";
+	// Js["Events"][0]["Input"] = "/tmp/onvif_noti_motion";
+	// Js["Events"][0]["Name"]	 = "VideoSourceConfigurationToken";
+	// Js["Events"][0]["Topic"] = "tns1:VideoSource/MotionDetected";
+	// Js["Events"][0]["Value"] = "VideoSourceToken";
+	// Js["Events"][1]["Input"] = "/tmp/onvif_noti_human";
+	// Js["Events"][1]["Name"]	 = "VideoSourceConfigurationToken";
+	// Js["Events"][1]["Topic"] = "tns1:VideoSource/HumanDetected";
+	// Js["Events"][1]["Value"] = "VideoSourceToken";
 
-	Js["Profiles"][0]["Decoder"] = "G711";
-	Js["Profiles"][0]["Type"]	 = "H264";
-	Js["Profiles"][0]["Height"]	 = 1296;
-	Js["Profiles"][0]["Width"]	 = 2304;
-	Js["Profiles"][0]["SnapURL"] = "http://%s/cgi-bin/snapshot.sh";
-	Js["Profiles"][0]["URL"]	 = "rtsp://%s/profile1";
-	Js["Profiles"][0]["Name"]	 = "Profile_0";
+	// Js["Profiles"][0]["Decoder"] = "G711";
+	// Js["Profiles"][0]["Type"]	 = "H264";
+	// Js["Profiles"][0]["Height"]	 = 1296;
+	// Js["Profiles"][0]["Width"]	 = 2304;
+	// Js["Profiles"][0]["SnapURL"] = "http://%s/cgi-bin/snapshot.sh";
+	// Js["Profiles"][0]["URL"]	 = "rtsp://%s/profile1";
+	// Js["Profiles"][0]["Name"]	 = "Profile_0";
 
-	Js["Profiles"][1]["Decoder"] = "G711";
-	Js["Profiles"][1]["Type"]	 = "H264";
-	Js["Profiles"][1]["Height"]	 = 720;
-	Js["Profiles"][1]["Width"]	 = 1280;
-	Js["Profiles"][1]["SnapURL"] = "http://%s/cgi-bin/snapshot.sh";
-	Js["Profiles"][1]["URL"]	 = "rtsp://%s/profile2";
-	Js["Profiles"][1]["Name"]	 = "Profile_1";
+	// Js["Profiles"][1]["Decoder"] = "G711";
+	// Js["Profiles"][1]["Type"]	 = "H264";
+	// Js["Profiles"][1]["Height"]	 = 720;
+	// Js["Profiles"][1]["Width"]	 = 1280;
+	// Js["Profiles"][1]["SnapURL"] = "http://%s/cgi-bin/snapshot.sh";
+	// Js["Profiles"][1]["URL"]	 = "rtsp://%s/profile2";
+	// Js["Profiles"][1]["Name"]	 = "Profile_1";
 
-	char scope[96];
-	memset(scope, 0, sizeof(scope));
-	sprintf(scope, "onvif://www.onvif.org/name/%s", onvifSetting->name);
-	Js["Scopes"][0] = std::string(scope);
+	// char scope[96];
+	// memset(scope, 0, sizeof(scope));
+	// sprintf(scope, "onvif://www.onvif.org/name/%s", onvifSetting->name);
+	// Js["Scopes"][0] = std::string(scope);
 
-	memset(scope, 0, sizeof(scope));
-	sprintf(scope, "onvif://www.onvif.org/location/%s", onvifSetting->location);
-	Js["Scopes"][1] = std::string(scope);
+	// memset(scope, 0, sizeof(scope));
+	// sprintf(scope, "onvif://www.onvif.org/location/%s", onvifSetting->location);
+	// Js["Scopes"][1] = std::string(scope);
 
-	Js["Scopes"][2] = "onvif://www.onvif.org/Profile/Streaming";
-	Js["Scopes"][3] = "onvif://www.onvif.org/Profile/T";
+	// Js["Scopes"][2] = "onvif://www.onvif.org/Profile/Streaming";
+	// Js["Scopes"][3] = "onvif://www.onvif.org/Profile/T";
 
-	if (write_json_file(Js, FCA_ONVIF_SETTING_PATH)) {
-		return APP_CONFIG_SUCCESS;
-	}
-	else {
-		APP_DBG("Can not write: %s\n", FCA_ONVIF_SETTING_PATH);
-		return APP_CONFIG_ERROR_FILE_OPEN;
-	}
+	// if (write_json_file(Js, FCA_ONVIF_SETTING_PATH)) {
+	// 	return APP_CONFIG_SUCCESS;
+	// }
+	// else {
+	// 	APP_DBG("Can not write: %s\n", FCA_ONVIF_SETTING_PATH);
+	// 	return APP_CONFIG_ERROR_FILE_OPEN;
+	// }
+	return APP_CONFIG_SUCCESS;
 }
 
 int fca_configGetOnvifSetting(fca_onvif_setting_t *onvifSetting) {
-	json cfgJs;
+	// json cfgJs;
 
-	if (read_json_file(cfgJs, FCA_ONVIF_SETTING_PATH)) {
-		memset(onvifSetting, 0, sizeof(fca_onvif_setting_t));
+	// if (read_json_file(cfgJs, FCA_ONVIF_SETTING_PATH)) {
+	// 	memset(onvifSetting, 0, sizeof(fca_onvif_setting_t));
 
-		try {
-			std::string username   = cfgJs["Username"].get<std::string>();
-			std::string password   = cfgJs["Password"].get<std::string>();
-			std::string interfaces = cfgJs["Interfaces"].get<std::string>();
-			std::string location   = cfgJs["Location"].get<std::string>();
-			std::string name	   = cfgJs["Name"].get<std::string>();
-			onvifSetting->port	   = cfgJs["Port"].get<int>();
+	// 	try {
+	// 		std::string username   = cfgJs["Username"].get<std::string>();
+	// 		std::string password   = cfgJs["Password"].get<std::string>();
+	// 		std::string interfaces = cfgJs["Interfaces"].get<std::string>();
+	// 		std::string location   = cfgJs["Location"].get<std::string>();
+	// 		std::string name	   = cfgJs["Name"].get<std::string>();
+	// 		onvifSetting->port	   = cfgJs["Port"].get<int>();
 
-			strncpy(onvifSetting->username, username.c_str(), (username.length() > sizeof(onvifSetting->username) ? sizeof(onvifSetting->username) : username.length()));
-			strncpy(onvifSetting->password, password.c_str(), (password.length() > sizeof(onvifSetting->password) ? sizeof(onvifSetting->password) : password.length()));
-			strncpy(onvifSetting->interfaces, interfaces.c_str(),
-					(interfaces.length() > sizeof(onvifSetting->interfaces) ? sizeof(onvifSetting->interfaces) : interfaces.length()));
-			strncpy(onvifSetting->location, location.c_str(), (location.length() > sizeof(onvifSetting->location) ? sizeof(onvifSetting->location) : location.length()));
-			strncpy(onvifSetting->name, name.c_str(), (name.length() > sizeof(onvifSetting->name) ? sizeof(onvifSetting->name) : name.length()));
+	// 		strncpy(onvifSetting->username, username.c_str(), (username.length() > sizeof(onvifSetting->username) ? sizeof(onvifSetting->username) : username.length()));
+	// 		strncpy(onvifSetting->password, password.c_str(), (password.length() > sizeof(onvifSetting->password) ? sizeof(onvifSetting->password) : password.length()));
+	// 		strncpy(onvifSetting->interfaces, interfaces.c_str(),
+	// 				(interfaces.length() > sizeof(onvifSetting->interfaces) ? sizeof(onvifSetting->interfaces) : interfaces.length()));
+	// 		strncpy(onvifSetting->location, location.c_str(), (location.length() > sizeof(onvifSetting->location) ? sizeof(onvifSetting->location) : location.length()));
+	// 		strncpy(onvifSetting->name, name.c_str(), (name.length() > sizeof(onvifSetting->name) ? sizeof(onvifSetting->name) : name.length()));
 
-			return APP_CONFIG_SUCCESS;
-		}
-		catch (...) {
-		}
-	}
+	// 		return APP_CONFIG_SUCCESS;
+	// 	}
+	// 	catch (...) {
+	// 	}
+	// }
 
-	return APP_CONFIG_ERROR_DATA_INVALID;
+	// return APP_CONFIG_ERROR_DATA_INVALID;
+	return APP_CONFIG_SUCCESS;
 }
 
 int fca_configSetRecord(StorageSdSetting_t *storageSd) {
 	json recordJs;
 	if (fca_jsonSetRecord(recordJs, storageSd)) {
-		string filePath = FCA_USER_CONF_PATH "/" FCA_RECORD_FILE;
+		string filePath = FCA_VENDORS_FILE_LOCATE(FCA_RECORD_FILE);
 		if (write_json_file(recordJs, filePath))
 			return APP_CONFIG_SUCCESS;
 		else {

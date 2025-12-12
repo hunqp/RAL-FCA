@@ -129,7 +129,7 @@ void Indicator::setNetStatus(STATUS newNetStatus) {
 
 int Indicator::getUserControlFromFile(int *userCtrl) {
 	json cfgJs;
-	string filePath = FCA_USER_CONF_PATH "/" FCA_IO_DRIVER_CONTROL_FILE;
+	string filePath = FCA_VENDORS_FILE_LOCATE(FCA_IO_DRIVER_CONTROL_FILE);
 
 	if (!read_json_file(cfgJs, filePath)) {
 		APP_DRIVER("read io user control file failed\n");
@@ -146,7 +146,7 @@ int Indicator::getUserControlFromFile(int *userCtrl) {
 
 int Indicator::setUserControlToFile(int *userCtrl) {
 	json cfgJs;
-	string filePath = FCA_USER_CONF_PATH "/" FCA_IO_DRIVER_CONTROL_FILE;
+	string filePath = FCA_VENDORS_FILE_LOCATE(FCA_IO_DRIVER_CONTROL_FILE);
 
 	if (!read_json_file(cfgJs, filePath)) {
 		APP_DRIVER("read io user control file failed\n");

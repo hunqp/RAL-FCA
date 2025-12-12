@@ -503,10 +503,10 @@ void *gw_task_network_entry(void *) {
 		} break;
 
 		case GW_NET_RESET_WIFI_REQ: {
-			string path = FCA_USER_CONF_PATH "/" FCA_WIFI_FILE;
+			string path = vendorsConfigurationPath "/" FCA_WIFI_FILE;
 			remove(path.c_str());	 // remove wifi setting
 			#if SUPPORT_ETH
-			path = FCA_USER_CONF_PATH "/" FCA_ETHERNET_FILE;
+			path = vendorsConfigurationPath "/" FCA_ETHERNET_FILE;
 			remove(path.c_str());	 // remove eth setting
 			#endif
 

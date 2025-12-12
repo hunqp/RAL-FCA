@@ -444,15 +444,15 @@ enum {
 #define FCA_DEVICE_BIN_PATH			  "/app/bin"
 #define FCA_DEVICE_SOUND_PATH		  "/tmp/nfs/config/sound"
 #define FCA_DEVICE_INFO_PATH		  "/tmp/nfs/envir/version"
-#define FCA_USER_CONF_PATH			  "/tmp/envir/vendors"
-#define FCA_DFAUL_CONF_PATH			  "/tmp/envir/default"
+// #define vendorsConfigurationPath			  "/tmp/envir/vendors"
+// #define defaultConfigurationPath			  "/tmp/envir/default"
 #define FCA_MEDIA_JPEG_PATH			  "/tmp/jpeg"
 #define FCA_MEDIA_MP4_PATH			  "/tmp/mp4"
 #define FCA_SDCARD_CHECKSUM_FILE_PATH "/tmp/sdFileInfo"
 #define FCA_RTSP_KEY_GEN_FILE_PATH	  "/tmp/rtspKeyGen"
 #define FCA_BLE_SERVICE_UUID_PATH	  "ble_userconfig.json"
-#define FCA_ONVIF_SETTING_PATH		  FCA_USER_CONF_PATH "/onvif_config.json"
-#define FCA_LOG_FLASH_PATH			  FCA_USER_CONF_PATH "/log"
+// #define FCA_ONVIF_SETTING_PATH		  vendorsConfigurationPath "/onvif_config.json"
+#define FCA_LOG_FLASH_PATH			  
 #define FCA_LOG_RAM_PATH			  "/tmp/log"
 
 /* use for wifi and network */

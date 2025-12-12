@@ -112,7 +112,7 @@ void task_init(const char *params) {
 	JOURNAL_LOGGER.filename = strdup(FCA_VENDORS_FILE_LOCATE("journal.log").c_str());
 	RUNTIME_LOGGER.maxBytesCanBeHold = (10 * 1024);
 
-	motors.initialise(NULL, NULL);
+	// motors.initialise(NULL, NULL);
 
 	// char mac[17] = {0}, ssid[32] = {0}, pass[32] = {0};
 	// fca_netWifiAPGenInfo(mac, MAX_MAC_LEN, ssid, pass);

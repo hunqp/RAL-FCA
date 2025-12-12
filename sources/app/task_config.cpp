@@ -123,7 +123,7 @@ void *gw_task_config_entry(void *) {
 		case GW_CONFIG_SET_UPGRADE_STATUS_REQ: {
 			APP_DBG_SIG("GW_CONFIG_SET_UPGRADE_STATUS_REQ\n");
 
-			int ret = systemCmd("echo 0 > %s/%s", FCA_USER_CONF_PATH, FCA_OTA_STATUS);
+			int ret = systemCmd("echo 0 > %s/%s", vendorsConfigurationPath, FCA_OTA_STATUS);
 			/* response to mqtt server */
 			json resJs;
 			if (fca_setConfigJsonRes(resJs, MESSAGE_TYPE_UPGRADE_STATUS, ret)) {
@@ -141,10 +141,10 @@ void *gw_task_config_entry(void *) {
 
 				bool status = ownerCfgJs["Status"].get<bool>();
 				if (status) {
-					systemCmd("echo 1 > %s/%s", FCA_USER_CONF_PATH, FCA_OWNER_STATUS);
+					systemCmd("echo 1 > %s/%s", vendorsConfigurationPath, FCA_OWNER_STATUS);
 				}
 				else {
-					systemCmd("rm -f %s/%s", FCA_USER_CONF_PATH, FCA_OWNER_STATUS);
+					systemCmd("rm -f %s/%s", vendorsConfigurationPath, FCA_OWNER_STATUS);
 				}
 				ret = APP_CONFIG_SUCCESS;
 			}
@@ -372,7 +372,7 @@ void *gw_task_config_entry(void *) {
 }
 
 void removeUserFile(const char *fileName) {
-	string path = FCA_USER_CONF_PATH + string("/") + string(fileName);
+	string path = vendorsConfigurationPath + string("/") + string(fileName);
 	if (remove(path.c_str()) == 0) {
 		APP_DBG("Delete file [%s] successed\n", path.data());
 	}
