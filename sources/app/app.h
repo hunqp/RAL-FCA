@@ -495,6 +495,7 @@ extern std::string deviceSerialNumber;
 extern std::string defaultConfigurationPath;
 extern std::string vendorsConfigurationPath;
 
+extern bool selectedBluetoothMode;
 extern std::string vendorsHostapdSsid;
 extern std::string vendorsHostapdPssk;
 

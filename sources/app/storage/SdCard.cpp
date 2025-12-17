@@ -67,10 +67,10 @@ int SdCard::doOPER_GetCapacity(uint64_t *total, uint64_t *free, uint64_t *used) 
 		struct statfs statFs;
 		if (statfs(mMountPoint, &statFs) == 0) {
 			size_t blockSize = (uint64_t)statFs.f_bsize;
-			*total			 = (uint64_t)blockSize * (uint64_t)statFs.f_blocks;
-			*free			 = (uint64_t)blockSize * (uint64_t)statFs.f_bfree;
-			*used			 = (uint64_t)blockSize * ((uint64_t)statFs.f_blocks - (uint64_t)statFs.f_bfree);
-			ret				 = SD_OPER_SUCCESS;
+			*total = (uint64_t)blockSize * (uint64_t)statFs.f_blocks;
+			*free = (uint64_t)blockSize * (uint64_t)statFs.f_bfree;
+			*used = (uint64_t)blockSize * ((uint64_t)statFs.f_blocks - (uint64_t)statFs.f_bfree);
+			ret = SD_OPER_SUCCESS;
 		}
 	}
 

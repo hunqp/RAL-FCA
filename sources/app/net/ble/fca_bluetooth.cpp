@@ -20,8 +20,7 @@
 #include "odm_api_system.h"
 #include "odm_api_factory.h"
 // #include "queue_client.h"
-
-#include "rncryptor_c.h"
+#include "network_data_encrypt.h"
 #include "utils.h"
 
 #define TAG					 "[Ble] "
@@ -39,7 +38,9 @@ typedef struct {
 } BLUETOOTH_MESSAGE_S;
 
 // Messae with private UUID Sevice : 7e136f20-00a1-44dd-c9c3-77772b8b3377
-static std::string ble_ssid = "FC-P04L-C05I24100000002";
+static pthread_t pid = (pthread_t)NULL;
+static bool boolean = false;
+static std::string ble_ssid;
 static std::string ble_pssk;
 static BLUETOOTH_MESSAGE_S ble_group_msgs;
 
@@ -54,27 +55,14 @@ static unsigned char ble_device_qr[128] = {0x77, 0x33, 0x8b, 0x2b, 0x77, 0x77, 0
 
 static unsigned char ble_adv_data[] = {0x02, 0x01, 0x06, 0x18, 0x09, 'F', 'C', '-', 'R', 'A', 'L', 'I', '-', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'};
 static unsigned char ble_scan_data[] = {0x11, 0x07, 0x00, 0x00, 0xFE, 0xE7, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB};
-static unsigned char ble_noti_success_data[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc7, 0xfe, 0x00, 0x00, 'C', 'O', 'N', 'F', 'I', 'G', '_', 'O', 'K'};
-static unsigned char ble_noti_failure_data[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc7, 0xfe, 0x00, 0x00, 'C', 'O', 'N', 'F', 'I', 'G', '-', 'F', 'A', 'I', 'L'};
-static unsigned char ble_read_data[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'H', 'e', 'l', 'l', 'o'};
+// static unsigned char ble_noti_success_data[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc7, 0xfe, 0x00, 0x00, 'C', 'O', 'N', 'F', 'I', 'G', '_', 'O', 'K'};
+// static unsigned char ble_noti_failure_data[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc7, 0xfe, 0x00, 0x00, 'C', 'O', 'N', 'F', 'I', 'G', '-', 'F', 'A', 'I', 'L'};
+// static unsigned char ble_read_data[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc9, 0xfe, 0x00, 0x00, 'H', 'e', 'l', 'l', 'o'};
+// static unsigned char ble_read_data[] = {0x00, 0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xc8, 0xfe, 0x00, 0x00};
 
-static unsigned char* OpenSSL_Base64Decoder(const char *cipher, int *decodedLen) {
-	BIO *bio, *b64;
-    int cipherLen = strlen(cipher);
-    unsigned char *buffers = (unsigned char *)malloc(cipherLen);
-	if (!buffers) {
-		return NULL;
-	}
-    memset(buffers, 0, cipherLen);
-
-    b64 = BIO_new(BIO_f_base64());
-    bio = BIO_new_mem_buf((void *)cipher, -1);
-    bio = BIO_push(b64, bio);
-    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); /* NO_WRAP (no newlines) */
-    *decodedLen = BIO_read(bio, buffers, cipherLen);
-    BIO_free_all(bio);
-    return buffers;
-}
+static unsigned char ble_noti_success_data[] = {0x00, 0x00, 0x00, 0xfe, 0xc9, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb, 'C', 'O', 'N', 'F', 'I', 'G', '_', 'O', 'K'};
+static unsigned char ble_noti_failure_data[] = {0x00, 0x00, 0x00, 0xfe, 0xc9, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb, 'C', 'O', 'N', 'F', 'I', 'G', '-', 'F', 'A', 'I', 'L'};
+static unsigned char ble_read_data[] = {0x00, 0x00, 0x00, 0xfe, 0xc8, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb, 'H', 'e', 'l', 'l', 'o'};
 
 static int fca_ble_notify(int result) {
 	if (result == 0) {
@@ -118,9 +106,8 @@ static int fca_ble_setting_wifi(std::string msg) {
 	
 	try {
 		nlohmann::json js = json::parse(msg);
-		// nlohmann::json js = nlohmann::json::parse(std::string((char*)Decrypt, DecryptLen));
 
-		printf("JS: %s\r\n", js.dump(4).c_str());
+		APP_DBG("%s\r\n", js.dump(4).c_str());
 
 		if (!js.contains("Verified") || !js.contains("SSID") || !js.contains("Password")) {
 			throw runtime_error("Missing required fields in JSON data");
@@ -134,11 +121,6 @@ static int fca_ble_setting_wifi(std::string msg) {
 		APP_PRINT("Receive from BLE: ssid {%s}, pass {%s}, verification {%s}\n", wiFiSsid.c_str(), wiFiPssk.c_str(), verified.c_str());
 		safe_strcpy(wiFi.ssid, wiFiSsid.c_str(), sizeof(wiFi.ssid));
 		safe_strcpy(wiFi.keys, wiFiPssk.c_str(), sizeof(wiFi.keys));
-		// if (verified.compare(ble_pssk) == 0) {
-		// 	safe_strcpy(wiFi.ssid, wiFiSsid.c_str(), sizeof(wiFi.ssid));
-		// 	safe_strcpy(wiFi.keys, wiFiPssk.c_str(), sizeof(wiFi.keys));
-		// 	rc = 0;
-		// }
 		rc = 0;
 	}
 	catch (const std::exception &e) {
@@ -148,17 +130,16 @@ static int fca_ble_setting_wifi(std::string msg) {
 	fca_ble_notify(rc);
 
 	if (rc == 0) {
+		wiFi.dhcp = true;
 		wiFi.enable = true;
-		wiFi.dhcp   = true;
 		int isConfigOk = fca_configSetWifi(&wiFi);
 		if (isConfigOk == 0) {
 			APP_DBG_NET(TAG "Wifi setting: \nssid: [%s] \npass: [%s]\n", wiFi.ssid, wiFi.keys);
 			netSetupState = NET_SETUP_STATE_CONFIG;
-			task_post_dynamic_msg(GW_TASK_NETWORK_ID, GW_NET_WIFI_DO_CONNECT, (uint8_t *)&wiFi, sizeof(wiFi));
-
 			if (ts != 0) {
 				systemCmd("date -u -s @%u", ts);
 			}
+			task_post_dynamic_msg(GW_TASK_NETWORK_ID, GW_NET_WIFI_DO_CONNECT, (uint8_t *)&wiFi, sizeof(wiFi));
 		}
 	}
 	return rc;
@@ -192,6 +173,13 @@ int fca_ble_factory_mode(std::string msg) {
 	return rc;
 }
 
+static inline bool isBase64Characters(uint8_t let) {
+    return (let >= 'A' && let <= 'Z') ||
+           (let >= 'a' && let <= 'z') ||
+           (let >= '0' && let <= '9') ||
+           (let == '+' || let == '/' || let == '=');
+}
+
 void fca_bluetooth_on_message(FCA_BLE_EVT_CB ble_evt, fca_ble_data_buf_t *data) {
 	APP_DBG("BLE EVT: %d\r\n", ble_evt);
 
@@ -200,9 +188,9 @@ void fca_bluetooth_on_message(FCA_BLE_EVT_CB ble_evt, fca_ble_data_buf_t *data) 
 		APP_DBG("BLE -> FCA_BLE_INIT_DONE\r\n");
 
 		int rc = -1;
-		char ssidBle[32] = "FC-P04L-C05I24100000002";
+		// char ssidBle[32] = "FC-P04L-C05I24100000XXX";
 
-		FCA_API_ASSERT((rc = fca_ble_gap_name_set_msg_send((uint8_t *)ssidBle, strlen(ssidBle))) == 0);
+		FCA_API_ASSERT((rc = fca_ble_gap_name_set_msg_send((uint8_t *)ble_ssid.c_str(), ble_ssid.length())) == 0);
 		if (rc != 0) {
 			return;
 		}
@@ -255,24 +243,21 @@ void fca_bluetooth_on_message(FCA_BLE_EVT_CB ble_evt, fca_ble_data_buf_t *data) 
 			return;
 		}
 
-		// for (uint8_t id = 0; id < data->len; ++id) {
-		// 	printf("%d (%c)\r\n", data->data[id], data->data[id]);
-		// }
-		printf("$$$\r\n");
-		printf("%s\r\n", (char*)data->data);
-		printf("$$$\r\n");
-
 		int start = 0;
-		for (int id = 0; id < (int)data->len; id++) {
+		for (int id = 0; id < (int)data->len - 2; id++) {
 			APP_DBG("%c", data->data[id]);
-			if (data->data[id] == '{') {
+			if (isBase64Characters(data->data[id]) && isBase64Characters(data->data[id + 1]) && isBase64Characters(data->data[id + 2])) {
 				start = id;
+				break;
 			}
 		}
 		string msg((char *)(data->data + start), data->len - start);
+		APP_DBG("\r\nEncrypt: %s\r\n", msg.c_str());
+		std::string decrypt = decryptMobileIncomeMessage(msg);
+		APP_DBG("Decrypt: %s\r\n", decrypt.c_str());
 		uint16_t services = (uint16_t)(data->data[13] << 8) + (uint16_t)(data->data[12]);
 		APP_DBG("BLE Service UUID: %04X\r\n", services);
-		fca_ble_setting_wifi(msg);
+		fca_ble_setting_wifi(decrypt);
 		// switch (services) {
 		// case BLE_SET_WIFI: {
 		// 	APP_DBG("-> -> BLE_SET_WIFI\n");
@@ -297,9 +282,27 @@ void fca_bluetooth_on_message(FCA_BLE_EVT_CB ble_evt, fca_ble_data_buf_t *data) 
 	}
 }
 
-static int bluetooth_setup_message(const char *sn, const char *ssid, const char *pssk) {
-	if (ssid) ble_ssid.assign(ssid);
-	if (pssk) ble_pssk.assign(pssk);
+static inline void bluetooth_setup_data(const char *sn, const char *ssid, const char *pssk) {
+	if (ssid) {
+		ble_ssid.assign(ssid);
+	}
+	if (pssk) {
+		ble_pssk.assign(pssk);
+	}
+
+	/* Setup SSID */
+	unsigned char *ptr = &ble_adv_data[5];
+	short len = sizeof(ble_adv_data) - 5;
+	memset(ptr, 0, len);
+	if (ssid && strlen(ssid) <= len) {
+		for (int id = 0; id < strlen(ssid); ++id) {
+			ptr[id] = ssid[id];
+		}
+	}
+}
+
+static int bluetooth_setup_services(const char *sn, const char *ssid, const char *pssk) {
+	bluetooth_setup_data(sn, ssid, pssk);
 
 	/* Initialise advertising data */
 	ble_group_msgs.adv.data = ble_adv_data;
@@ -321,30 +324,44 @@ static int bluetooth_setup_message(const char *sn, const char *ssid, const char 
 	return 0;
 }
 
-int fca_bluetooth_start(const char *sn, const char *ssid, const char *pssk) {
-	int rc = -1;
-
-	bluetooth_setup_message(sn, ssid, pssk);
-	APP_DBG("BLUETOOTH has started -> {S/N: %s, SSID: %s, PSSK: %s}\n", sn, ble_ssid.c_str(), ble_pssk.c_str());
-
+static void *fca_bluetooth_run(void *args) {
 	// const char *ble_services_fp = (const char*)"/usr/bin/blh/ble_userconfig.json";
-	const char *ble_services_fp = (const char*)"/tmp/envir/default/default/ble_userconfig.json";
-	APP_PRINT("BLE services path: %s\r\n", ble_services_fp);
-	FCA_API_ASSERT((rc = fca_ble_service_set(ble_services_fp)) == 0);
-	if (rc != 0) {
-		return -2;
+	std::string ble_services_fp = FCA_DEFAULT_FILE_LOCATE("ble_userconfig.json");
+	APP_PRINT("Bluetooth services path selected: %s\r\n", ble_services_fp.c_str());
+	FCA_API_ASSERT(fca_ble_service_set(ble_services_fp.c_str()) == 0);
+	FCA_API_ASSERT(fca_ble_insmod_driver() == 0);
+	FCA_API_ASSERT(fca_ble_stack_init(fca_bluetooth_on_message) == 0);
+
+	while (boolean) {
+		usleep(100000);
 	}
 
-	FCA_API_ASSERT((rc = fca_ble_insmod_driver()) == 0);
-	if (rc != 0) {
-		return rc;
+	APP_PRINT("BLE has closed\r\n");
+
+	return NULL;
+}
+
+int fca_bluetooth_start(const char *sn, const char *ssid, const char *pssk) {
+	if (pid) {
+		return 0;
 	}
-	FCA_API_ASSERT((rc = fca_ble_stack_init(fca_bluetooth_on_message)) == 0);
-	return rc;
+	bluetooth_setup_services(sn, ssid, pssk);
+	APP_PRINT("Bluetooth run {S/N: %s, SSID: %s, PSSK: %s}\r\n", sn, ble_ssid.c_str(), ble_pssk.c_str());
+
+	boolean = true;
+	pthread_create(&pid, NULL, fca_bluetooth_run, NULL);
+
+	return 0;
 }
 
 int fca_bluetooth_close() {
-	int rc = -1;
-	FCA_API_ASSERT((rc = fca_ble_gap_adv_stop()) == 0);
-	return rc;
+	boolean = false;
+
+	if (pid) {
+		FCA_API_ASSERT(fca_ble_gap_adv_stop() == 0);
+		FCA_API_ASSERT(fca_ble_deinit() == 0);
+		pthread_join(pid, NULL);
+		pid = (pthread_t)NULL;
+	}
+	return 0;
 }

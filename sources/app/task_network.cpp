@@ -27,8 +27,8 @@
 #include "network_manager.h"
 
 #include "nettime.hh"
-#include "rncryptor_c.h"
 #include "streamsocket.hh"
+#include "network_data_encrypt.h"
 
 #define TAG							   "[network] "
 #define NETWORK_PING_INTERNET_INTERVAL (5)
@@ -59,8 +59,6 @@ static void fca_netStaticStart(const char *ifname, const fca_netConf_t *info);
 static void fca_netStaticStop(const char *ifname);
 static void setNetVoice(int &st);
 static void removeCheckErrorNetworkTimers();
-
-static unsigned char* OpenSSL_Base64Decoder(const char *cipher, int *decodedLen);
 
 void *gw_task_network_entry(void *) {
 	ak_msg_t *msg = AK_MSG_NULL;
@@ -111,13 +109,19 @@ void *gw_task_network_entry(void *) {
 			/* Select mode wiFi STA or AP */
 			if (fca_configGetWifi(&wiFiSettings) != APP_CONFIG_SUCCESS) {
 				/* Select mode AP or BLE, priority BLE more */
-				#if FEATURE_BLE
-				bSelectedBLE = true;
-				task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTBLE);
-				#else /* Not support BLE */
-				bSelectedBLE = false;
-				task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTAPD);
-				#endif
+				// #if FEATURE_BLE
+				// bSelectedBLE = true;
+				// task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTBLE);
+				// #else /* Not support BLE */
+				// bSelectedBLE = false;
+				// task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTAPD);
+				// #endif
+				if (selectedBluetoothMode) {
+					task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTBLE);
+				}
+				else {
+					task_post_pure_msg(GW_TASK_NETWORK_ID, GW_NET_RUN_HOSTAPD);
+				}
 			}
 			else {
 				task_post_dynamic_msg(GW_TASK_NETWORK_ID, GW_NET_WIFI_DO_CONNECT, (uint8_t *)&wiFiSettings, sizeof(wiFiSettings));
@@ -288,24 +292,17 @@ void *gw_task_network_entry(void *) {
 
 			/* Close all Hostapd services */
 			hostapd.doClose();
-			FCA_API_ASSERT(fca_wifi_stop_ap_mode(FCA_NET_WIFI_AP_IF_NAME) == 0);
 
 			/* Start all BLE services */
 			char mac[17] = {0}, ssid[32] = {0}, pass[32] = {0};
 			fca_netWifiAPGenInfo(mac, MAX_MAC_LEN, ssid, pass);
+			#if 1 /* Hard code for testing */
+			strcpy(ssid, vendorsHostapdSsid.c_str());
+			strcpy(pass, vendorsHostapdPssk.c_str());
+			#endif
 			
 			/* Setup SSID */
-			std::string ble_ssid;
-			char chars[64] = {0};
-			snprintf(chars, sizeof(chars), "%s-%s-%s", "FC", "I04L", deviceSerialNumber.c_str());
-			ble_ssid.assign(std::string(chars));
-			std::transform(ble_ssid.begin(), ble_ssid.end(), ble_ssid.begin(), ::toupper);
-
-			int rc = fca_bluetooth_start(deviceSerialNumber.c_str(), ble_ssid.c_str(), pass);
-			if (rc != 0) {
-				SYSE("Can't start bluetooth mode\r\n");
-			}
-			else APP_PRINT("Bluetooth mode has started SN {%s}, SSID {%s}, PSSK {%s}\r\n", deviceSerialNumber.c_str(), ble_ssid.c_str(), pass);
+			fca_bluetooth_start(deviceSerialNumber.c_str(), ssid, pass);	
 		}
 		break;
 
@@ -318,7 +315,6 @@ void *gw_task_network_entry(void *) {
 			fca_bluetooth_close();
 
 			/* Start all Hostapd services */
-			FCA_API_ASSERT(fca_wifi_stop_ap_mode(FCA_NET_WIFI_AP_IF_NAME) == 0);
 			fca_netWifiAPGenInfo(mac, MAX_MAC_LEN, ssid, pass);
 			#if 1 /* Hard code for testing */
 			strcpy(ssid, vendorsHostapdSsid.c_str());
@@ -333,43 +329,27 @@ void *gw_task_network_entry(void *) {
 			hostapd.onOpened([ssid, pass]() {
 				int rc = fca_wifi_start_ap_mode(FCA_NET_WIFI_AP_IF_NAME, ssid, pass, NETWORK_AP_HOST_IP);
 				if (rc != 0) {
-					SYSW("APIs WiFi access point %s failure return %d\r\n", NETWORK_AP_HOST_IP, rc);
+					RAM_SYSW("APIs start wi-Fi access point %s failure return %d\r\n", NETWORK_AP_HOST_IP, rc);
 					return;
 				}
 				APP_PRINT("Hostapd socket has opened\n");
 			});
 			hostapd.onClosed([]() {
+				int rc = fca_wifi_stop_ap_mode(FCA_NET_WIFI_AP_IF_NAME);
+				if (rc != 0) {
+					RAM_SYSW("APIs stop wi-Fi access point %s failure return %d\r\n", NETWORK_AP_HOST_IP, rc);
+					return;
+				}
 				APP_PRINT("Hostapd socket has closed\n");
 			});
 			hostapd.onIncome([](SS_INGOING_S &in, SS_OUGOING_S &ou) {
 				APP_DBG("Hostapd incoming: %s\n", in.str.c_str());
 
-				/* Decode and Parser */
-				int decoder64Len = 0;
-				unsigned char *decoder64 = OpenSSL_Base64Decoder(in.str.c_str(), &decoder64Len);
-				if (!decoder64) {
-					SYSE("HOSTAPD - Invalid Decode Base64\r\n");
-					return;
-				}
-				int DecryptLen = 0;
-				char errBuffers[512] = {0};
-				unsigned char *Decrypt = rncryptorc_decrypt_data_with_password(
-					(const unsigned char*)decoder64, decoder64Len,
-					100,
-					"05hQGF7bpdfakooDoXM6Ad632YE3yDZv", 
-					strlen("05hQGF7bpdfakooDoXM6Ad632YE3yDZv"),
-					&DecryptLen,
-					errBuffers, sizeof(errBuffers));
-				if (!Decrypt) {
-					SYSE("HOSTAPD - Can't decrypt by RNCrypto\r\n");
-					return;
-				}
-				free(decoder64);
-				APP_DBG("Decrypt -> %s\r\n", Decrypt);
+				std::string decrypt = decryptMobileIncomeMessage(in.str);
 
 				try {
 					uint32_t ts = 0;
-					nlohmann::json js = nlohmann::json::parse(std::string((char*)Decrypt, DecryptLen));
+					nlohmann::json js = nlohmann::json::parse(decrypt);
 					std::string ssid = js["ssid"].get<std::string>();
 					std::string pass = js["password"].get<std::string>();
 					if (js.contains("ts")) {
@@ -855,23 +835,4 @@ void removeCheckErrorNetworkTimers() {
 	timer_remove_attr(GW_TASK_NETWORK_ID, GW_NET_RESTART_UDHCPC_NETWORK_INTERFACES_REQ);
 	// timer_remove_attr(GW_TASK_NETWORK_ID, GW_NET_RELOAD_WIFI_DRIVER_REQ);  NOTE: GIEC always reloads wifi driver every time it connects
 	timer_remove_attr(GW_TASK_NETWORK_ID, GW_NET_REBOOT_ERROR_NETWORK_REQ);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static unsigned char* OpenSSL_Base64Decoder(const char *cipher, int *decodedLen) {
-	BIO *bio, *b64;
-    int cipherLen = strlen(cipher);
-    unsigned char *buffers = (unsigned char *)malloc(cipherLen);
-	if (!buffers) {
-		return NULL;
-	}
-    memset(buffers, 0, cipherLen);
-
-    b64 = BIO_new(BIO_f_base64());
-    bio = BIO_new_mem_buf((void *)cipher, -1);
-    bio = BIO_push(b64, bio);
-    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); /* NO_WRAP (no newlines) */
-    *decodedLen = BIO_read(bio, buffers, cipherLen);
-    BIO_free_all(bio);
-    return buffers;
 }

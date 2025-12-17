@@ -17,7 +17,7 @@ BUILD_INDOOR 	:= 1
 BUILD_OUDOOR 	:= 0
 
 # List software features
-FEATURE_BLE		:= 0
+FEATURE_BLE		:= 1
 FEATURE_RECORD	:= 0
 
 # List hardware supports
