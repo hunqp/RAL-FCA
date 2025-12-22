@@ -258,8 +258,7 @@ int rtcControlSoundAlarm(json &content, bool &respFlag) {
 }
 
 int rtcQueryPlaylistOfExtDisks(json &content, bool &respFlag) {
-	(void)(respFlag);
-	APP_DBG_RTC("rtcQueryPlaylistOfExtDisks() -> %s\n", content.dump(4).c_str());
+	APP_DBG("rtcQueryPlaylistOfExtDisks() -> %s\n", content.dump(4).c_str());
 
 	#define QRY_PLAYLIST_TYPE_ALL 			( 0)
 	#define QRY_PLAYLIST_TYPE_REGULAR 		((int)FILE_RECORD_TYPE_247)
@@ -288,7 +287,7 @@ int rtcQueryPlaylistOfExtDisks(json &content, bool &respFlag) {
 		for (auto it : playlist) {
 			bool hasEvents = (it.metadata.ind > 0) ? true : false;
 			nlohmann::json js = {
-				{"Name",		it.name		},
+				{"FileName",	it.name		},
 				{"StartTS",		it.startTs	},
 				{"StopTS",		it.closeTs	},
 				{"HasEvents",	hasEvents 	}
@@ -313,149 +312,82 @@ int rtcQueryPlaylistOfExtDisks(json &content, bool &respFlag) {
 
 		printf("Playlist:\r\n%s\r\rn", content.dump(4).c_str());
 	}
-	catch (...) {
-		return APP_CONFIG_ERROR_FILE_OPEN;
+	catch (const std::exception &e) {
+		APP_ERROR("%s", e.what());
+		return APP_CONFIG_ERROR_DATA_INVALID;
 	}
-
-	// 	if (content["Type"].is_array()) {
-	// 		for (auto it : content["Type"]) {
-	// 			if (it == QRY_TYPE_EVT) {
-	// 				qrMask = (RECORDER_TYPE)(RECORD_TYPE_MDT | RECORD_TYPE_HMD);
-	// 			}
-	// 			else if (it == QRY_TYPE_ALL) {
-	// 				qrMask = (RECORDER_TYPE)(RECORD_TYPE_REG | RECORD_TYPE_MDT | RECORD_TYPE_HMD);
-	// 			}
-	// 			else if (it == QRY_TYPE_REG) {
-	// 				qrMask = (RECORDER_TYPE)(RECORD_TYPE_REG);
-	// 			}
-	// 			else if (it == QRY_TYPE_MDT) {
-	// 				qrMask = (RECORDER_TYPE)RECORD_TYPE_MDT;
-	// 			}
-	// 			else if (it == QRY_TYPE_HMD) {
-	// 				qrMask = (RECORDER_TYPE)RECORD_TYPE_HMD;
-	// 			}
-	// 		}
-	// 	}
-	// 	else {
-	// 		SD_QUERY_PLAYLIST qrPlaylits = content["Type"].get<SD_QUERY_PLAYLIST>();
-	// 		if (qrPlaylits == QRY_TYPE_EVT) {
-	// 			qrMask = (RECORDER_TYPE)(RECORD_TYPE_MDT | RECORD_TYPE_HMD);
-	// 		}
-	// 		else if (qrPlaylits == QRY_TYPE_ALL) {
-	// 			qrMask = (RECORDER_TYPE)(RECORD_TYPE_REG | RECORD_TYPE_MDT | RECORD_TYPE_HMD);
-	// 		}
-	// 		else if (qrPlaylits == QRY_TYPE_REG) {
-	// 			qrMask = (RECORDER_TYPE)(RECORD_TYPE_REG);
-	// 		}
-	// 		else if (qrPlaylits == QRY_TYPE_MDT) {
-	// 			qrMask = (RECORDER_TYPE)RECORD_TYPE_MDT;
-	// 		}
-	// 		else if (qrPlaylits == QRY_TYPE_HMD) {
-	// 			qrMask = (RECORDER_TYPE)RECORD_TYPE_HMD;
-	// 		}
-	// 	}
-	// }
-	// catch (...) {
-	// 	return APP_CONFIG_ERROR_FILE_OPEN;
-	// }
-
-	// try {
-	// 	begTsStr = content["BeginTime"].get<std::string>();
-	// 	endTsStr = content["EndTime"].get<std::string>();
-
-	// 	/* 	NOTE: content["Type"] is an integer for app old version <= 5.6.0,
-	// 		extend query type array for app new version >= 5.6.0.
-	// 	*/
-	// 	if (content["Type"].is_array()) {
-	// 		for (auto it : content["Type"]) {
-	// 			if (it == QRY_TYPE_EVT) {
-	// 				qrMask = (RECORDER_TYPE)(RECORD_TYPE_MDT | RECORD_TYPE_HMD);
-	// 			}
-	// 			else if (it == QRY_TYPE_ALL) {
-	// 				qrMask = (RECORDER_TYPE)(RECORD_TYPE_REG | RECORD_TYPE_MDT | RECORD_TYPE_HMD);
-	// 			}
-	// 			else if (it == QRY_TYPE_REG) {
-	// 				qrMask = (RECORDER_TYPE)(RECORD_TYPE_REG);
-	// 			}
-	// 			else if (it == QRY_TYPE_MDT) {
-	// 				qrMask = (RECORDER_TYPE)RECORD_TYPE_MDT;
-	// 			}
-	// 			else if (it == QRY_TYPE_HMD) {
-	// 				qrMask = (RECORDER_TYPE)RECORD_TYPE_HMD;
-	// 			}
-	// 		}
-	// 	}
-	// 	else {
-	// 		SD_QUERY_PLAYLIST qrPlaylits = content["Type"].get<SD_QUERY_PLAYLIST>();
-	// 		if (qrPlaylits == QRY_TYPE_EVT) {
-	// 			qrMask = (RECORDER_TYPE)(RECORD_TYPE_MDT | RECORD_TYPE_HMD);
-	// 		}
-	// 		else if (qrPlaylits == QRY_TYPE_ALL) {
-	// 			qrMask = (RECORDER_TYPE)(RECORD_TYPE_REG | RECORD_TYPE_MDT | RECORD_TYPE_HMD);
-	// 		}
-	// 		else if (qrPlaylits == QRY_TYPE_REG) {
-	// 			qrMask = (RECORDER_TYPE)(RECORD_TYPE_REG);
-	// 		}
-	// 		else if (qrPlaylits == QRY_TYPE_MDT) {
-	// 			qrMask = (RECORDER_TYPE)RECORD_TYPE_MDT;
-	// 		}
-	// 		else if (qrPlaylits == QRY_TYPE_HMD) {
-	// 			qrMask = (RECORDER_TYPE)RECORD_TYPE_HMD;
-	// 		}
-	// 	}
-	// }
-	// catch (...) {
-	// 	return APP_CONFIG_ERROR_FILE_OPEN;
-	// }
-
-	// uint32_t qrBegTs = u32TsConvert(begTsStr, RECORD_DATETIME_FORMAT);
-	// uint32_t qrEndTs = u32TsConvert(endTsStr, RECORD_DATETIME_FORMAT);
-	// APP_DBG("qrMask : %d\r\n", qrMask);
-	// APP_DBG("qrBegTs: %d\r\n", qrBegTs);
-	// APP_DBG("qrEndTs: %d\r\n", qrEndTs);
-
-	// content.clear();
-	// content["Total"]	 = 0;
-	// content["BeginTime"] = begTsStr;
-	// content["EndTime"]	 = endTsStr;
-	// content["Playlists"].clear();
-
-	// vector<RecorderDescStructure> listRecords;
-	// if (qrEndTs > qrBegTs) {
-	// 	listRecords = sdCard.doOPER_GetPlaylists(qrBegTs, qrEndTs, qrMask);
-	// }
-
-	// content["Total"] = listRecords.size();
-	// APP_DBG("Total records: %d\n", listRecords.size());
-	// for (size_t id = 0; id < listRecords.size(); ++id) {
-	// 	int type;
-	// 	if (listRecords[id].type == RECORD_TYPE_REG) {
-	// 		type = (int)QRY_TYPE_REG;
-	// 	}
-	// 	else if (listRecords[id].type == RECORD_TYPE_MDT) {
-	// 		type = (int)QRY_TYPE_MDT;
-	// 	}
-	// 	else {
-	// 		type = (int)QRY_TYPE_HMD;
-	// 	}
-	// 	json JS;
-	// 	JS["OrderNumber"]	 = id;
-	// 	JS["Type"]			 = type;
-	// 	JS["FileName"]		 = listRecords[id].name;
-	// 	JS["DurationInSecs"] = listRecords[id].durationInSecs;
-	// 	JS["BeginTime"]		 = strTsConvert(listRecords[id].begTs);
-	// 	JS["EndTime"]		 = strTsConvert(listRecords[id].endTs);
-	// 	content["Playlists"].push_back(JS);
-	// }
 
 	return APP_CONFIG_SUCCESS;
 }
 
 int rtcCntlPlaybackOfExtDisks(json &content, bool &respFlag) {
-	// std::string rcStr;
-	// std::string dateStr;
+	APP_DBG("rtcCntlPlaybackOfExtDisks -> %s\r\n", content.dump(4).c_str());
 
-	// APP_DBG("%s\r\n", content.dump(4).c_str());
+	/*
+		{
+			"FileName": "2025-12-17T02.46.14.mp4",  
+			"SeekPos": 0,
+			"Speed": 0,
+			"Status": 0/1/2/3/4/5
+		},
+	*/
+
+	try {
+		int wantedSpeedToPlay = 0;
+		int seekToAnotherSecs = 0;
+
+		std::string filename = content["FileName"].get<std::string>();
+		PLAYBACK_CONTROL cntl = content["Status"].get<PLAYBACK_CONTROL>();
+		if (content.contains("SeekPos")) {
+			seekToAnotherSecs = content["SeekPos"].get<int>();
+		}
+		if (content.contains("Speed")) {
+			wantedSpeedToPlay = content["Speed"].get<int>();
+		}
+
+		auto it = clients.find(qrId);
+		if (it == clients.end()) {
+			return APP_CONFIG_ERROR_DATA_INVALID;
+		}
+
+		auto qrClient = it->second;
+		Client::eOptions opts = Client::eOptions::Playback;
+
+		qrClient->setMediaStreamOptions(Client::eOptions::Idle);
+
+		if (cntl == PB_CTL_PLAY && !filename.empty()) {
+			/* 	Parse and get folder path contain specified recorder 
+				Example: 2025-11-26T00.19.33.mp4
+			*/
+			std::string folder;
+			size_t pos = filename.find('T');
+			if (pos != std::string::npos) {
+				folder = filename.substr(0, pos);
+			}
+			std::string path = DEFAULT_MOUNTPOINT + std::string("/") + folder + std::string("/") + filename;
+			int rc = qrClient->setPlbSdSource(path.c_str());
+			APP_PRINT("Selected playback video \"%s\" return %d\r\n", path.c_str(), rc);
+			if (rc != 0) {
+				return APP_CONFIG_ERROR_DATA_INVALID;
+			}
+		}
+		else if (cntl == PB_CTL_STOP) {
+			opts = Client::eOptions::Pending;
+		}
+
+		/* Client transition state */
+		qrClient->setMediaStreamOptions(opts);
+		if (cntl == PB_CTL_SPEED) {
+			qrClient->setPlbSdControl(PB_CTL_SPEED, wantedSpeedToPlay);
+		}
+		else qrClient->setPlbSdControl(cntl, seekToAnotherSecs);
+	}
+	catch (const std::exception &e) {
+		APP_ERROR("%s", e.what());
+		return APP_CONFIG_ERROR_DATA_INVALID;
+	}
+
+	return APP_CONFIG_SUCCESS;
 
 	// try {
 	// 	rcStr				   = content["FileName"].get<string>();
