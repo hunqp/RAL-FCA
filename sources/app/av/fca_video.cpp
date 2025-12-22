@@ -43,7 +43,7 @@ uint64_t nowInUs() {
 }
 
 static void captureStream0Channels(const fca_video_in_frame_t *Frame) {
-	VV_RB_MEDIA_RESOURCE_S resource = {
+	VV_RB_MEDIA_FRAMED_S resource = {
 		.id = Frame->sequence,
 		.pData = Frame->data,
 		.dataLen = Frame->size,
@@ -56,7 +56,7 @@ static void captureStream0Channels(const fca_video_in_frame_t *Frame) {
 }
 
 static void captureStream1Channels(const fca_video_in_frame_t *Frame) {
-	VV_RB_MEDIA_RESOURCE_S resource = {
+	VV_RB_MEDIA_FRAMED_S resource = {
 		.id = Frame->sequence,
 		.pData = Frame->data,
 		.dataLen = Frame->size,

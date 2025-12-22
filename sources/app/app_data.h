@@ -203,10 +203,10 @@ typedef struct {
 	STORAGE_SD_OPTION opt;
 } StorageSdSetting_t;
 
-typedef struct {
-	RECORDER_TYPE type;
-	uint32_t timestamp;
-} RecorderSdTrigger_t;
+// typedef struct {
+// 	RECORDER_TYPE type;
+// 	uint32_t timestamp;
+// } RecorderSdTrigger_t;
 
 /* S3 Setting*/
 typedef struct {

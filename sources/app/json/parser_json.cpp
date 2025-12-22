@@ -1200,7 +1200,7 @@ bool fca_jsonGetRecord(json &json_in, StorageSdSetting_t *storageSd) {
 			storageSd->regDurationInSec = json_in["Duration"].get<int>();
 		}
 		else {
-			storageSd->regDurationInSec = SDCARD_RECORD_DURATION_DEFAULT;	 // 900s
+			storageSd->regDurationInSec = 900;	 // 900s
 		}
 		return true;
 	}

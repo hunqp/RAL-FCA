@@ -22,7 +22,7 @@ AudioHelpers::~AudioHelpers() {
 extern uint64_t nowInUs();
 
 static int captureStream0Channels(const fca_audio_frame_t* Frame) {
-	VV_RB_MEDIA_RESOURCE_S resource = {
+	VV_RB_MEDIA_FRAMED_S resource = {
 		.id = Frame->sequence,
 		.pData = Frame->data,
 		.dataLen = Frame->size,
@@ -37,7 +37,7 @@ static int captureStream0Channels(const fca_audio_frame_t* Frame) {
 }
 
 static int captureStream1Channels(const fca_audio_frame_t* Frame) {
-	VV_RB_MEDIA_RESOURCE_S resource = {
+	VV_RB_MEDIA_FRAMED_S resource = {
 		.id = Frame->sequence,
 		.pData = Frame->data,
 		.dataLen = Frame->size,

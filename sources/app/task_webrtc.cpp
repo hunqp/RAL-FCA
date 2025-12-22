@@ -578,18 +578,18 @@ void *gw_task_webrtc_entry(void *) {
 
 		case GW_WEBRTC_DATACHANNEL_DOWNLOAD_RELEASE_REQ: {
 			APP_DBG_SIG("GW_WEBRTC_DATACHANNEL_DOWNLOAD_RELEASE_REQ\n");
-			string id((char *)msg->header->payload);
-			if (auto jt = clients.find(id); jt != clients.end()) {
-				auto cl = jt->second;
-				cl->setDownloadFlag(false);
-			}
-			else {
-				APP_DBG_RTC("clientId not found\n");
-			}
+			// string id((char *)msg->header->payload);
+			// if (auto jt = clients.find(id); jt != clients.end()) {
+			// 	auto cl = jt->second;
+			// 	cl->setDownloadFlag(false);
+			// }
+			// else {
+			// 	APP_DBG_RTC("clientId not found\n");
+			// }
 
-			/* Remove temporary file (file raw thumbnail) */
-			systemCmd("rm -f %s/*%s", FCA_MEDIA_JPEG_PATH, RECORD_IMG_SUFFIX);
-			SYSLOG_LOG(LOG_INFO, "logf=%s [DOWNLOAD] client %s release download", APP_CONFIG_SYSLOG_CPU_RAM_FILE_NAME, id.data());
+			// /* Remove temporary file (file raw thumbnail) */
+			// systemCmd("rm -f %s/*%s", FCA_MEDIA_JPEG_PATH, RECORD_IMG_SUFFIX);
+			// SYSLOG_LOG(LOG_INFO, "logf=%s [DOWNLOAD] client %s release download", APP_CONFIG_SYSLOG_CPU_RAM_FILE_NAME, id.data());
 		} break;
 
 		default:

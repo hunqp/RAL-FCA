@@ -285,53 +285,53 @@ void EventDetection::print() {
 void onMOTIONDetected(fca_md_result_t result) {
 	(void)result;
 
-	uint32_t ts = (uint32_t)time(NULL);
+	// uint32_t ts = (uint32_t)time(NULL);
 
-	/* Trigger storage cloud */
-	if (eventDetection.isDetected() == false) {
-		eventDetection.setStatus(true);
-		/* Stop motion for saving CPU, because after duration setting, the event triggers again */
-		eventDetection.stop();
-		task_post_common_msg(GW_TASK_DETECT_ID, GW_DETECT_ALARM_MOTION_DETECTED, (uint8_t *)&ts, sizeof(ts));
-	}
+	// /* Trigger storage cloud */
+	// if (eventDetection.isDetected() == false) {
+	// 	eventDetection.setStatus(true);
+	// 	/* Stop motion for saving CPU, because after duration setting, the event triggers again */
+	// 	eventDetection.stop();
+	// 	task_post_common_msg(GW_TASK_DETECT_ID, GW_DETECT_ALARM_MOTION_DETECTED, (uint8_t *)&ts, sizeof(ts));
+	// }
 
-	/* Trigger storage Sd */
-	if (sdCard.currentState() == SD_STATE_MOUNTED && bLocalEventsRecorderEnable) {
-		if (!bLocalEventsTriggered) {
-			RecorderSdTrigger_t trigger;
-			trigger.type	  = RECORD_TYPE_MDT;
-			trigger.timestamp = ts;
-			task_post_common_msg(GW_TASK_RECORD_ID, GW_RECORD_STORAGE_LOCAL_TYPE_EVENTS, (uint8_t *)&trigger, sizeof(trigger));
-			bLocalEventsTriggered = true;
+	// /* Trigger storage Sd */
+	// if (sdCard.currentState() == SD_STATE_MOUNTED && bLocalEventsRecorderEnable) {
+	// 	if (!bLocalEventsTriggered) {
+	// 		RecorderSdTrigger_t trigger;
+	// 		trigger.type	  = RECORD_TYPE_MDT;
+	// 		trigger.timestamp = ts;
+	// 		task_post_common_msg(GW_TASK_RECORD_ID, GW_RECORD_STORAGE_LOCAL_TYPE_EVENTS, (uint8_t *)&trigger, sizeof(trigger));
+	// 		bLocalEventsTriggered = true;
 
-			uint32_t duration = eventDetection.config->duration + 5;
-			timer_set(GW_TASK_RECORD_ID, GW_RECORD_STORAGE_LOCAL_TYPE_REGULAR, duration * 1000, TIMER_ONE_SHOT);
-		}
-	}
+	// 		uint32_t duration = eventDetection.config->duration + 5;
+	// 		timer_set(GW_TASK_RECORD_ID, GW_RECORD_STORAGE_LOCAL_TYPE_REGULAR, duration * 1000, TIMER_ONE_SHOT);
+	// 	}
+	// }
 }
 
 void onIVAHumanDetect() {
-	uint32_t ts = (uint32_t)time(NULL);
+	// uint32_t ts = (uint32_t)time(NULL);
 
-	/* Trigger storage cloud */
-	if (eventDetection.isDetected() == false) {
-		eventDetection.setStatus(true);
-		/* Stop motion for saving CPU, because after duration setting, the event triggers again */
-		eventDetection.stop();
-		task_post_common_msg(GW_TASK_DETECT_ID, GW_DETECT_ALARM_HUMAN_DETECTED, (uint8_t *)&ts, sizeof(ts));
-	}
+	// /* Trigger storage cloud */
+	// if (eventDetection.isDetected() == false) {
+	// 	eventDetection.setStatus(true);
+	// 	/* Stop motion for saving CPU, because after duration setting, the event triggers again */
+	// 	eventDetection.stop();
+	// 	task_post_common_msg(GW_TASK_DETECT_ID, GW_DETECT_ALARM_HUMAN_DETECTED, (uint8_t *)&ts, sizeof(ts));
+	// }
 
-	/* Trigger storage Sd */
-	if (sdCard.currentState() == SD_STATE_MOUNTED && bLocalEventsRecorderEnable) {
-		if (!bLocalEventsTriggered) {
-			RecorderSdTrigger_t trigger;
-			trigger.type	  = RECORD_TYPE_HMD;
-			trigger.timestamp = ts;
-			task_post_common_msg(GW_TASK_RECORD_ID, GW_RECORD_STORAGE_LOCAL_TYPE_EVENTS, (uint8_t *)&trigger, sizeof(trigger));
-			bLocalEventsTriggered = true;
+	// /* Trigger storage Sd */
+	// if (sdCard.currentState() == SD_STATE_MOUNTED && bLocalEventsRecorderEnable) {
+	// 	if (!bLocalEventsTriggered) {
+	// 		RecorderSdTrigger_t trigger;
+	// 		trigger.type	  = RECORD_TYPE_HMD;
+	// 		trigger.timestamp = ts;
+	// 		task_post_common_msg(GW_TASK_RECORD_ID, GW_RECORD_STORAGE_LOCAL_TYPE_EVENTS, (uint8_t *)&trigger, sizeof(trigger));
+	// 		bLocalEventsTriggered = true;
 
-			uint32_t duration = eventDetection.config->duration + 5;
-			timer_set(GW_TASK_RECORD_ID, GW_RECORD_STORAGE_LOCAL_TYPE_REGULAR, duration * 1000, TIMER_ONE_SHOT);
-		}
-	}
+	// 		uint32_t duration = eventDetection.config->duration + 5;
+	// 		timer_set(GW_TASK_RECORD_ID, GW_RECORD_STORAGE_LOCAL_TYPE_REGULAR, duration * 1000, TIMER_ONE_SHOT);
+	// 	}
+	// }
 }

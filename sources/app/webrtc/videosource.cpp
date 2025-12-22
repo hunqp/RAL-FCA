@@ -26,7 +26,7 @@ void VideoSource::stop() {
 
 void VideoSource::loadNextSample() {
 	int rc = -1;
-	VV_RB_MEDIA_RESOURCE_S Frame;
+	VV_RB_MEDIA_FRAMED_S Frame;
 
 	sample = {};
 	rc = ringBufferReadFrom(consumer, &Frame);

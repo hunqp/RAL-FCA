@@ -73,6 +73,7 @@ void *gw_task_network_entry(void *) {
 		if (isFirstTime) {
 			isFirstTime = false;
 			ntpd.setTimePeriodicUpdate(5000);
+			task_post_pure_msg(GW_TASK_RECORD_ID, GW_RECORD_INIT);
 			task_post_pure_msg(GW_TASK_CLOUD_ID, GW_CLOUD_MQTT_INIT_REQ);
 			SYSI("Network time has updated: %s\r\n", datetime);
 		}
@@ -186,6 +187,7 @@ void *gw_task_network_entry(void *) {
 			get_data_dynamic_msg(msg, (uint8_t*)&wiFiSettings, sizeof(wiFiSettings));
 
 			hostapd.doClose();
+			fca_bluetooth_close();
 
 			int rc = fca_wifi_connect(FCA_NET_WIFI_STA_IF_NAME, wiFiSettings.ssid, wiFiSettings.keys);
 			if (rc != 0) {

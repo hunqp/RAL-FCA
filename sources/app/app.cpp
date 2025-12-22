@@ -115,7 +115,10 @@ void task_init(const char *params) {
 	RUNTIME_LOGGER.maxBytesCanBeHold = (10 * 1024);
 
 
-	// int rc = fca_bluetooth_start(deviceSerialNumber.c_str(), vendorsHostapdSsid.c_str(), vendorsHostapdPssk.c_str());
+	// fca_bluetooth_start(deviceSerialNumber.c_str(), vendorsHostapdSsid.c_str(), vendorsHostapdPssk.c_str());
+	// while (1) {
+	// 	sleep(1);
+	// }
 	// if (rc != 0) {
 	// 	SYSE("Can't start bluetooth mode\r\n");
 	// }
@@ -152,7 +155,7 @@ void task_init(const char *params) {
 	// }
 
 	// ledStatus.init();
-	motors.initialise(NULL, NULL);
+	// motors.initialise(NULL, NULL);
 
 	caSslPath = FCA_VENDORS_FILE_LOCATE(FCA_NETWORK_CA_FILE);
 	if (!doesFileExist(caSslPath.c_str())) {

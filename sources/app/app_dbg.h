@@ -7,7 +7,7 @@
 // #define APP_DBG_EN		  1
 // #define APP_PRINT_EN	  1
 // #define APP_ERR_EN		  0
-#define APP_DBG_SIG_EN	  0
+#define APP_DBG_SIG_EN	  1
 // #define APP_DBG_DRIVER_EN 0
 // #define APP_DBG_ISP_EN	  1
 // #define APP_DBG_RTC_EN	  1

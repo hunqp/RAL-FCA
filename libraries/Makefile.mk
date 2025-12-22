@@ -4,3 +4,4 @@
 -include libraries/libmosquitto-2.0.22/Makefile.mk
 -include libraries/libral/Makefile.mk
 -include libraries/librtspd555/Makefile.mk
+-include libraries/libmp4v2/Makefile.mk

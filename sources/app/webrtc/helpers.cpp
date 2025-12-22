@@ -29,7 +29,6 @@ std::atomic<bool> Client::isSignalingRunning(false);
 int Client::maxClientSetting				 = CLIENT_MAX;
 int Client::totalClientsConnectSuccess		 = 0;
 AtomicString Client::currentClientPushToTalk("");
-static rtc::binary prefeatchOneNalu(std::string pathStr, uint32_t *cursor);
 
 Client::Client(std::shared_ptr<rtc::PeerConnection> pc) {
 	_peerConnection = pc;
@@ -43,7 +42,7 @@ Client::Client(std::shared_ptr<rtc::PeerConnection> pc) {
 Client::~Client() {
 	APP_DBG_RTC("~Client id: %s\n", mId.c_str());
 	
-	setPlbSdControl(PB_CTL_STOP, NULL);
+	setPlbSdControl(PB_CTL_STOP, 0);
 	removeTimeoutDownload();
 
 	pthread_mutex_destroy(&mPOSIXMutex);
@@ -219,64 +218,77 @@ void Client::removeTimeoutDownload() {
 }
 
 /// PLAYBACK FUNCITONS ///////////////////////////////////////////////////////////// 
-void Client::setPlbSdSource(PlbSdSource pbSdSrc) {
+int Client::setPlbSdSource(const char *filename) {
+	if (access(filename, F_OK) != 0) {
+		return -1;
+	}
+	int rc = -1;
 	pthread_mutex_lock(&mPOSIXMutex);
-
-	mPbSdSource = pbSdSrc;
-	this->mPbSdSource.startTime = currentTimeInMicroSeconds();
-
+	rc = mMP4Auxs.begin(filename);
 	pthread_mutex_unlock(&mPOSIXMutex);
+
+	return rc;
 }
 
-void Client::setPlbSdControl(PLAYBACK_CONTROL ctl, uint32_t *argv) {
+int Client::setPlbSdControl(PLAYBACK_CONTROL cmd, int params) {
+	int rc = 0;
+
 	pthread_mutex_lock(&mPOSIXMutex);
 
-	switch (ctl) {
+	switch (cmd) {
 	case PB_CTL_PLAY: {
-		mPbState = PB_STATE_PLAYING;
-		if (!mPblCntlId) {
-			mLoop = true;
-			pthread_create(&mPblCntlId, NULL, Client::hdlSendSdSourceToPeer, this);
-			APP_DBG_RTC("Playback started for client: %s\n", mId.c_str());
+		this->mSpeedFactor = 1.0;
+		this->mPlbState = PB_STATE_PLAYING;
+		if (params != 0) {
+			this->mMP4Auxs.seeks(params);
 		}
-	}
-	break;
-
-	case PB_CTL_PAUSE: {
-		mPbState = PB_STATE_PAUSING;
-	}
-	break;
-
-	case PB_CTL_STOP: {
-		mPbState = PB_STATE_STOPPED;
-		mPbSdSource.reset();
-
-		mLoop = false;
-		if (mPblCntlId) {
-			pthread_mutex_unlock(&mPOSIXMutex);
-			APP_DBG_RTC("Waiting for playback thread to join...");
-			pthread_join(mPblCntlId, NULL);
-			APP_DBG_RTC("Playback thread joined.");
-			pthread_mutex_lock(&mPOSIXMutex);
-			mPblCntlId = (pthread_t)NULL;
+		if (!this->mPblCntlId) {
+			mLoop = true;
+			pthread_create(&this->mPblCntlId, NULL, Client::hdlSendSdSourceToPeer, this);
 		}
 	}
 	break;
 
 	case PB_CTL_RESUME: {
-		mPbState = PB_STATE_PLAYING;
+		mPlbState = PB_STATE_PLAYING;
+	}
+	break;
+
+	case PB_CTL_PAUSE: {
+		mPlbState = PB_STATE_PAUSING;
+	}
+	break;
+
+	case PB_CTL_STOP: {
+		mPlbState = PB_STATE_STOPPED;
 	}
 	break;
 
 	case PB_CTL_SEEK: {
-		if (*argv < mPbSdSource.durationInSecs) {
-			mPbSdSource.setCursorPos(*argv);
+		if (this->mPlbState != PB_STATE_PAUSING) {
+			this->mPlbState = PB_STATE_PLAYING;
 		}
+		rc = this->mMP4Auxs.seeks(params);
 	}
 	break;
 
 	case PB_CTL_SPEED: {
-		mPbSdSource.cntlSpeed(*argv);
+		switch (params) {
+		case PB_SPEED_SLOW05: this->mSpeedFactor = 0.5; 
+		break;
+		case PB_SPEED_NORMAL: this->mSpeedFactor = 1;
+		break;
+		case PB_SPEED_FASTx2: this->mSpeedFactor = 2;
+		break;
+		case PB_SPEED_FASTx4: this->mSpeedFactor = 4;
+		break;
+		case PB_SPEED_FASTx8: this->mSpeedFactor = 8;
+		break;
+		case PB_SPEED_FASTx16: this->mSpeedFactor = 16;
+		break;
+		default:
+		break;
+		}
 	}
 	break;
 	
@@ -285,347 +297,136 @@ void Client::setPlbSdControl(PLAYBACK_CONTROL ctl, uint32_t *argv) {
 	}
 
 	pthread_mutex_unlock(&mPOSIXMutex);
+
+	if (cmd == PB_CTL_STOP && this->mPblCntlId) {
+		mLoop = false;
+		pthread_join(this->mPblCntlId, NULL);
+		this->mPblCntlId = (pthread_t)NULL;
+		this->mMP4Auxs.close();
+	}
+
+	return rc;
 }
 
 PLAYBACK_STATUS Client::getPlbSdStatus() {
 	pthread_mutex_lock(&mPOSIXMutex);
 
-	auto ret = mPbState;
-	if (mPbSdSource.audio.fileSize > 0 && mPbSdSource.video.fileSize > 0) {
-		if (mPbSdSource.audio.cursor >= mPbSdSource.audio.fileSize) {
-			ret = PB_STATE_DONE;
-		}
-	}
+	auto ret = mPlbState;
 
 	pthread_mutex_unlock(&mPOSIXMutex);
 
 	return ret;
 }
 
-uint32_t Client::getPlbTimeSpentInSecs() {
-	pthread_mutex_lock(&mPOSIXMutex);
-
-	auto ret = (uint32_t)(((double)mPbSdSource.video.cursor / mPbSdSource.video.fileSize) * mPbSdSource.durationInSecs);
-	
-	pthread_mutex_unlock(&mPOSIXMutex);
-
-	return ret;
-}
-
-rtc::binary Client::getPlbSdSample(bool bVideo) {
-	pthread_mutex_lock(&mPOSIXMutex);
-
-	auto sample = (bVideo) ? mPbSdSource.prefetchSrcVideoSamples() : mPbSdSource.prefetchSrcAudioSamples();
-
-	pthread_mutex_unlock(&mPOSIXMutex);
-
-	return sample;
-}
-
-// FUNCTION LOAD SAMPLE FORM SD CARD
-static rtc::binary prefetchFrom(std::string pathStr, uint32_t size, uint32_t cursor) {
-	int fd		  = -1;
-	uint8_t *data = NULL;
-	rtc::binary sample;
-
-	fd = open(pathStr.c_str(), O_RDONLY);
-	if (fd < 0) {
-		return {};
-	}
-
-	data = (uint8_t *)malloc(size * sizeof(uint8_t));
-	if (data == NULL) {
-		close(fd);
-		return {};
-	}
-
-	int read = pread(fd, data, size, cursor);
-	if (read) {
-		sample.insert(sample.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + read);
-	}
-
-	close(fd);
-	free(data);
-
-	return sample;
-}
-
-rtc::binary prefeatchOneNalu(std::string pathStr, uint32_t *cursor) {
-    #define STAGE_NALU_INITIAL      0
-    #define STAGE_NALU_STORAGE      1
-    #define STAGE_NALU_COMPLETED    2
-
-    int stage = STAGE_NALU_INITIAL;
-    bool naluCompleted = false;
-
-    rtc::binary nalu;
-
-    while (!naluCompleted) {
-        auto buffer = prefetchFrom(pathStr, 4096, *cursor);
-        if (buffer.empty()) {
-            break;
-        }
-
-        if (buffer.size() <= 4) {
-            nalu.insert(nalu.end(), 
-                        reinterpret_cast<std::byte*>(buffer.data()), 
-                        reinterpret_cast<std::byte*>(buffer.data()) + buffer.size());
-            cursor += buffer.size();
-            break;
-        }
-
-        for (size_t id = 0; id < buffer.size(); ++id) {
-            uint8_t *p = (uint8_t*)buffer.data() + id;
-            if (IS_NALU4_START(p)) {
-                ++(stage);
-            }
-            
-            if (stage == STAGE_NALU_INITIAL) {
-                ++(*cursor);
-            }
-            else if (stage == STAGE_NALU_STORAGE) {
-                nalu.emplace_back(static_cast<std::byte>(buffer[id]));
-                ++(*cursor);
-            }
-            else if (stage == STAGE_NALU_COMPLETED) {
-                naluCompleted = true;
-                break;
-            }
-        }
-    }
-    
-    return nalu;
-}
-
-void PlbSdSource::reset() {
-	video.cursor = 0;
-	video.fileSize = 0;
-	video.pathStr.clear();
-	audio.cursor = 0;
-	audio.fileSize = 0;
-	audio.pathStr.clear();
-	startTime = 0;
-}
-
-rtc::binary PlbSdSource::prefetchSrcVideoSamples() {
-	rtc::binary sample = {};
-
-	if (video.pathStr.empty() || video.fileSize == 0) {
-		return {};
-	}
-
-		rtc::binary nalu = prefeatchOneNalu(video.pathStr, &video.cursor);
-		if (nalu.size() > 4) {
-			rtc::NalUnitHeader *header = (rtc::NalUnitHeader *)(nalu.data() + 4);
-			if (header->unitType() == AVCNALUnitType::AVC_NAL_SPS) {
-				auto pps = prefeatchOneNalu(video.pathStr, &video.cursor);
-				auto idr = prefeatchOneNalu(video.pathStr, &video.cursor);
-				nalu.insert(nalu.end(), pps.begin(), pps.end());
-				nalu.insert(nalu.end(), idr.begin(), idr.end());
-			}
-			sample.insert(sample.end(), nalu.begin(), nalu.end());
-		}
-
-	video.sampleTime_us += video.sampleDuration_us;
-
-	return sample;
-}
-
-rtc::binary PlbSdSource::prefetchSrcAudioSamples() {
-	rtc::binary sample = {};
-
-	if (audio.pathStr.empty() || audio.fileSize == 0) {
-		return {};
-	}
-
-	sample = prefetchFrom(audio.pathStr, AUDIO_PLAYBACK_SAMPLE_SIZE, audio.cursor);
-	if (sample.size()) {
-		audio.cursor += sample.size();
-	}
-
-	audio.sampleTime_us += audio.sampleDuration_us;
-
-	return sample;
-}
-
-bool PlbSdSource::loadattributes(std::string viPathStr, std::string auPathStr, std::string descStr) {
-    video.pathStr = viPathStr + std::string("/") + descStr + RECORD_VID_SUFFIX;
-    audio.pathStr = auPathStr + std::string("/") + descStr + RECORD_AUD_SUFFIX;
-	
-    video.cursor = 0;
-    audio.cursor = 0;
-
-    /* Get duration */
-    struct tm tim;
-    uint32_t begTs = 0, endTs = 0;
-    char sfx[5], typeStr[4];
-    memset(sfx, 0, sizeof(sfx));
-    memset(typeStr, 0, sizeof(typeStr));
-    sscanf(descStr.c_str(), RECORD_DESC_PARSER_FORMATTER,
-            &tim.tm_year, &tim.tm_mon, &tim.tm_mday, &tim.tm_hour, &tim.tm_min, &tim.tm_sec, 
-            &begTs, &endTs, typeStr, sfx);
-    
-    durationInSecs = endTs - begTs;
-
-	video.fileSize = sizeOfFile(video.pathStr.c_str());
-	audio.fileSize = sizeOfFile(audio.pathStr.c_str());
-
-	video.sampleDuration_us = VIDEO_PLAYBACK_DURATION_US;
-	audio.sampleDuration_us = AUDIO_PLAYBACK_DURATION_US;
-	video.sampleTime_us = std::numeric_limits<uint64_t>::max() - video.sampleDuration_us + 1;
-	audio.sampleTime_us = std::numeric_limits<uint64_t>::max() - audio.sampleDuration_us + 1;
-	video.sampleTime_us += video.sampleDuration_us;
-	audio.sampleTime_us += audio.sampleDuration_us;
-
-	return (video.fileSize != 0 && audio.fileSize != 0) ? true : false;
-}
-
-void PlbSdSource::cntlSpeed(int wantedSpeed) {
-	switch (wantedSpeed) {
-		case PB_SPEED_SLOW05: {
-			video.sampleDuration_us = VIDEO_PLAYBACK_DURATION_US * 2;
-			audio.sampleDuration_us = AUDIO_PLAYBACK_DURATION_US * 2;
-		}
-		break;
-	
-		case PB_SPEED_NORMAL: {
-			video.sampleDuration_us = VIDEO_PLAYBACK_DURATION_US;
-			audio.sampleDuration_us = AUDIO_PLAYBACK_DURATION_US;
-		}
-		break;
-	
-		case PB_SPEED_FASTx2: {
-			video.sampleDuration_us = VIDEO_PLAYBACK_DURATION_US / 2;
-			audio.sampleDuration_us = AUDIO_PLAYBACK_DURATION_US / 2;
-		}
-		break;
-	
-		case PB_SPEED_FASTx4: {
-			video.sampleDuration_us = VIDEO_PLAYBACK_DURATION_US / 4;
-			audio.sampleDuration_us = AUDIO_PLAYBACK_DURATION_US / 4;
-		}
-		break;
-	
-		case PB_SPEED_FASTx8: {
-			video.sampleDuration_us = VIDEO_PLAYBACK_DURATION_US / 8;
-			audio.sampleDuration_us = AUDIO_PLAYBACK_DURATION_US / 8;
-		}
-		break;
-	
-		case PB_SPEED_FASTx16: {
-			video.sampleDuration_us = VIDEO_PLAYBACK_DURATION_US / 16;
-			audio.sampleDuration_us = AUDIO_PLAYBACK_DURATION_US / 16;
-		}
-		break;
-		
-		default:
-		break;
-		}
-}
-
-void PlbSdSource::setCursorPos(int wantedSecs) {
-	video.cursor = (wantedSecs / 2) * (video.fileSize / (durationInSecs / 2));
-
-	do {
-		rtc::binary nalu = prefeatchOneNalu(video.pathStr, &video.cursor);
-		if (nalu.size() > 4) {
-			rtc::NalUnitHeader *header = (rtc::NalUnitHeader *)(nalu.data() + 4);
-			if (header->unitType() == AVCNALUnitType::AVC_NAL_SPS) {
-				break;
-			}
-		}
-		else break;
-	}
-	while (1);
-
-	int percent = video.cursor * 100 / video.fileSize;
-	audio.cursor = percent * audio.fileSize / 100;
-}
-
-static std::pair<uint64_t, Stream::StreamSourceType> unsafePrepareForSample(PlbSdSource *plbCntlPtr) {
-	uint64_t nextTime;
+std::pair<uint64_t, Stream::StreamSourceType> 
+	Client::unsafePrepareForSample(uint64_t viSampleTime_us, uint64_t auSampleTime_us, uint64_t startTime) 
+{
 	uint64_t sampleTime_us = 0;
 	Stream::StreamSourceType sst;
 
-    if (plbCntlPtr->audio.sampleTime_us < plbCntlPtr->video.sampleTime_us) {
+    if (auSampleTime_us < viSampleTime_us) {
 		sst = Stream::StreamSourceType::Audio;
-		nextTime = sampleTime_us = plbCntlPtr->audio.sampleTime_us;
+		sampleTime_us = auSampleTime_us;
 	}
 	else {
         sst = Stream::StreamSourceType::Video;
-		nextTime = sampleTime_us = plbCntlPtr->video.sampleTime_us;
+		sampleTime_us = viSampleTime_us;
     }
 
-    auto currentTime = currentTimeInMicroSeconds();
-
-    auto elapsed = currentTime - plbCntlPtr->startTime;
-    if (nextTime > elapsed) {
-        auto waitTime = nextTime - elapsed;
+    auto elapsed = currentTimeInMicroSeconds() - startTime;
+    if (sampleTime_us > elapsed) {
+        auto waitTime = sampleTime_us - elapsed;
+		pthread_mutex_unlock(&mPOSIXMutex);
         usleep(waitTime);
+		pthread_mutex_lock(&mPOSIXMutex);
     }
 
 	return {sampleTime_us, sst};
 }
 
 void *Client::hdlSendSdSourceToPeer(void *arg) {
-	Client *clientPtr = static_cast<Client*>(arg);
+	int elapsedSecs = 0;
+	Client *me = static_cast<Client*>(arg);
+	uint64_t startTime = currentTimeInMicroSeconds();
 
-	while (clientPtr->mLoop) {
-		if (clientPtr->getMediaStreamOptions() != Client::eOptions::Playback) {
-			sleep(1);
+	struct {
+		uint64_t sampleTime_us;
+		uint64_t sampleDuration_us = VIDEO_PLAYBACK_DURATION_US;
+	} videoTime;
+
+	struct {
+		uint64_t sampleTime_us;
+		uint64_t sampleDuration_us = AUDIO_PLAYBACK_DURATION_US;
+	} audioTime;
+
+	videoTime.sampleTime_us = std::numeric_limits<uint64_t>::max() - videoTime.sampleDuration_us + 1;
+	audioTime.sampleTime_us = std::numeric_limits<uint64_t>::max() - audioTime.sampleDuration_us + 1;
+	videoTime.sampleTime_us += videoTime.sampleDuration_us;
+	audioTime.sampleTime_us += audioTime.sampleDuration_us;
+
+	while (me->mLoop) {
+		pthread_mutex_lock(&me->mPOSIXMutex);
+
+		auto [sampleTime, sst] = me->unsafePrepareForSample(videoTime.sampleTime_us, audioTime.sampleTime_us, startTime);
+		auto trackData = (sst == Stream::StreamSourceType::Video) ? me->video.value() : me->audio.value();
+		if (me->mPlbState != PB_STATE_PLAYING) {
+			if (sst == Stream::StreamSourceType::Video) {
+				videoTime.sampleTime_us += (videoTime.sampleDuration_us / me->mSpeedFactor);
+			}
+			else {
+				audioTime.sampleTime_us += (audioTime.sampleDuration_us / me->mSpeedFactor);
+			}
+			pthread_mutex_unlock(&me->mPOSIXMutex);
 			continue;
 		}
 
-		auto ssSST = unsafePrepareForSample(&clientPtr->mPbSdSource);
-		auto sst = ssSST.second;
-		auto sampleTime = ssSST.first;
-
-		bool oneSecsElapsed = false;
-		auto trackData = (sst == Stream::StreamSourceType::Video) ? clientPtr->video.value() : clientPtr->audio.value();
-
-		auto rtpConfig = trackData->sender->rtpConfig;
-		auto elapsedSeconds	= double(sampleTime) / (1000.0 * 1000);
-		uint32_t elapsedTimestamp = rtpConfig->secondsToTimestamp(elapsedSeconds);
-		rtpConfig->timestamp = rtpConfig->startTimestamp + elapsedTimestamp;
-		auto reportElapsedTimestamp = rtpConfig->timestamp - trackData->sender->lastReportedTimestamp();
-		if (rtpConfig->timestampToSeconds(reportElapsedTimestamp) > 1) {
-			trackData->sender->setNeedsToReport();
-			oneSecsElapsed = true;
-		}
-
-		if (clientPtr->getPlbSdStatus() != PB_STATE_PLAYING) {
-			/* Balance sample timestamp */
-			if (sst == Stream::StreamSourceType::Video) clientPtr->mPbSdSource.video.sampleTime_us += clientPtr->mPbSdSource.video.sampleDuration_us;
-			else clientPtr->mPbSdSource.audio.sampleTime_us += clientPtr->mPbSdSource.audio.sampleDuration_us;
-		
+		/* Load next samples and update samples time */
+		rtc::binary sample = me->mMP4Auxs.readSamples(sst == Stream::StreamSourceType::Video);
+		if (!sample.size()) {
+			if (sst == Stream::StreamSourceType::Video) {
+				videoTime.sampleTime_us += (videoTime.sampleDuration_us / me->mSpeedFactor);
+			}
+			else {
+				audioTime.sampleTime_us += (audioTime.sampleDuration_us / me->mSpeedFactor);
+			}
+			pthread_mutex_unlock(&me->mPOSIXMutex);
 			continue;
 		}
 
-		auto sample = clientPtr->getPlbSdSample(sst == Stream::StreamSourceType::Video);
+		if (sst == Stream::StreamSourceType::Video) {
+			videoTime.sampleDuration_us = 1000000 / me->mMP4Auxs.framePerSeconds();
+			videoTime.sampleTime_us += (videoTime.sampleDuration_us / me->mSpeedFactor);
+		}
+		else {
+			audioTime.sampleDuration_us = (1000000 * sample.size()) / AUDIO_SAMPLERATE;
+			audioTime.sampleTime_us += (audioTime.sampleDuration_us / me->mSpeedFactor);
+		}
 
 		try {
 			/* REPORT PLAYBACK: Timestamp elapsed in seconds */
-			if (sst == Stream::StreamSourceType::Video && oneSecsElapsed) {
-				nlohmann::json JS = {
-					{"Id"			,	fca_getSerialInfo()			},
-					{"Type"			,	"Report"					},
-					{"Command"		,	"Playback"					},
-					{"SessionId"	,	clientPtr->getSessionId()	},
-					{"SequenceId"	,	clientPtr->getSequenceId()	},
-					{"Content"	,	
-						{
-							{"SeekPos"	, clientPtr->getPlbTimeSpentInSecs()},
-							{"Status"	, clientPtr->getPlbSdStatus()		},
-						}
-					},
-				};
-				auto dc = clientPtr->dataChannel.value();
-				dc->send(JS.dump());
+			if (sst == Stream::StreamSourceType::Video) {
+				if (elapsedSecs != me->mMP4Auxs.elapsedSeconds()) {
+					elapsedSecs = me->mMP4Auxs.elapsedSeconds();
+					nlohmann::json js = {
+						{"Id"			,	fca_getSerialInfo()	},
+						{"Type"			,	"Report"			},
+						{"Command"		,	"Playback"			},
+						{"SessionId"	,	me->getSessionId()	},
+						{"SequenceId"	,	me->getSequenceId()	},
+						{"Content"	,	
+							{
+								{"SeekPos"	, elapsedSecs	},
+								{"Status"	, me->mPlbState	},
+							}
+						},
+					};
+					auto dc = me->dataChannel.value();
+					dc->send(js.dump());
+					printf("FPS: %d, elapsed seconds: %d\r\n", me->mMP4Auxs.framePerSeconds(), elapsedSecs);
+				}
 			}
 			
-			if (sample.size()) {
-				trackData->track->send(sample);
-			}
+			trackData->track->sendFrame(sample, std::chrono::duration<double, std::micro>(sampleTime));
 		}
 		catch (const std::exception& e) {
 			std::cout << e.what() << std::endl;

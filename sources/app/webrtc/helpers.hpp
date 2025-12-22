@@ -17,6 +17,7 @@
 #include "app_dbg.h"
 #include "rtc/rtc.hpp"
 #include "stream.hpp"
+#include "recorder.h"
 #include "utils.h"
 
 #define CLIENT_SIGNALING_MAX 20
@@ -38,39 +39,6 @@ struct ClientTrackData {
 		this->track	 = track;
 		this->sender = sender;
 	}
-};
-
-struct ClientTrack {
-	std::string id;
-	std::shared_ptr<ClientTrackData> trackData;
-
-	ClientTrack(std::string id, std::shared_ptr<ClientTrackData> trackData) {
-		this->id		= id;
-		this->trackData = trackData;
-	}
-};
-
-typedef struct {
-    std::string pathStr;
-    uint32_t cursor;
-    uint32_t fileSize;
-	
-	uint64_t sampleTime_us;
-	uint64_t sampleDuration_us;
-} SdPlbAttributes;
-
-struct PlbSdSource {
-	uint64_t startTime = 0;
-	uint32_t durationInSecs;
-	SdPlbAttributes video;
-	SdPlbAttributes audio;
-
-	void reset();
-	void cntlSpeed(int wantedSpeed);
-	void setCursorPos(int wantedSecs);
-	bool loadattributes(std::string viPathStr, std::string auPathStr, std::string descStr);
-	rtc::binary prefetchSrcVideoSamples();
-	rtc::binary prefetchSrcAudioSamples();
 };
 
 class Client : public std::enable_shared_from_this<Client> {
@@ -131,11 +99,9 @@ public:
 	void removeTimeoutDownload();
 
 	/* Media Stream Methods (Live & PLayBack) */
-	void setPlbSdSource(PlbSdSource pbSdSrc);
-	void setPlbSdControl(PLAYBACK_CONTROL ctl, uint32_t *argv);
+	int setPlbSdSource(const char *filename);
+	int setPlbSdControl(PLAYBACK_CONTROL cmd, int params);
 	PLAYBACK_STATUS getPlbSdStatus();
-	uint32_t getPlbTimeSpentInSecs();
-	rtc::binary getPlbSdSample(bool bVideo);
 
 	void setSequenceId(int32_t seq);
 	void setSessionId(int32_t ses);
@@ -169,8 +135,8 @@ private:
 	std::string mId;
 	std::shared_ptr<rtc::PeerConnection> _peerConnection;
 
-	eOptions mOptions			  = eOptions::Idle;
-	eResolution mLiveResolution	  = eResolution::HD720p;
+	eOptions mOptions = eOptions::Idle;
+	eResolution mLiveResolution = eResolution::HD720p;
 
 	int32_t mSequenceId;
 	int32_t mSessionId;
@@ -183,12 +149,15 @@ private:
 	uint32_t mCursorFile;
 	std::atomic<int> mPacketTimerId;
 	
+	/* Playback */
+	volatile bool mLoop;
+	float mSpeedFactor;
+	MP4v2Reader mMP4Auxs;
+	PLAYBACK_STATUS mPlbState = PB_STATE_STOPPED;
 	pthread_t mPblCntlId = (pthread_t)NULL;
-	PlbSdSource mPbSdSource;
-	PLAYBACK_STATUS mPbState = PB_STATE_STOPPED;
-	volatile bool mLoop = true;
 
 	static void *hdlSendSdSourceToPeer(void *);
+	std::pair<uint64_t, Stream::StreamSourceType> unsafePrepareForSample(uint64_t viSampleTime_us, uint64_t auSampleTime_us, uint64_t startTime);
 };
 
 typedef std::unordered_map<std::string, std::shared_ptr<Client>> ClientsGroup_t;

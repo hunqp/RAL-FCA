@@ -127,7 +127,7 @@ void ringBufferDelete(VV_RB_MEDIA_HANDLE_T pHdl) {
 	free(pHdl);
 }
 
-int ringBufferSendTo(VV_RB_MEDIA_HANDLE_T pHdl, VV_RB_MEDIA_RESOURCE_S *pFramer) {
+int ringBufferSendTo(VV_RB_MEDIA_HANDLE_T pHdl, VV_RB_MEDIA_FRAMED_S *pFramer) {
 	if (!pHdl || !pFramer || !pFramer->pData) {
 		return -1;
 	}
@@ -215,7 +215,7 @@ int ringBufferSendTo(VV_RB_MEDIA_HANDLE_T pHdl, VV_RB_MEDIA_RESOURCE_S *pFramer)
 	return 0;
 }
 
-int ringBufferReadFrom(VV_RB_MEDIA_HANDLE_T pHdl, VV_RB_MEDIA_RESOURCE_S *pFramer) {
+int ringBufferReadFrom(VV_RB_MEDIA_HANDLE_T pHdl, VV_RB_MEDIA_FRAMED_S *pFramer) {
 	if (!pHdl || !pFramer) {
 		return -1;
 	}

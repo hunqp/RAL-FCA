@@ -32,7 +32,7 @@ void RTSPD::addMediaSession0(std::string streamName, std::string description,
 
     ms.audio.doGettingFramed = [&](RTSPD555_FRAMER_S *Frame) -> int {
         int rc = -1;
-        VV_RB_MEDIA_RESOURCE_S resource;
+        VV_RB_MEDIA_FRAMED_S resource;
         rc = ringBufferReadFrom(mConsumerGettingAUDIO0, &resource);
         if (rc == 0) {
             Frame->sample.clear();
@@ -51,7 +51,7 @@ void RTSPD::addMediaSession0(std::string streamName, std::string description,
     ms.video.doGettingFramed = [&](RTSPD555_FRAMER_S *Frame) -> int {
         int rc = -1;
         static uint32_t lastSeqId = 0;
-        VV_RB_MEDIA_RESOURCE_S resource;
+        VV_RB_MEDIA_FRAMED_S resource;
         rc = ringBufferReadFrom(mConsumerGettingVIDEO0, &resource);
         if (rc == 0) {
             if (resource.id > (lastSeqId + 1)) {
@@ -91,7 +91,7 @@ void RTSPD::addMediaSession1(std::string streamName, std::string description,
 
     ms.audio.doGettingFramed = [&](RTSPD555_FRAMER_S *Frame) -> int {
         int rc = -1;
-        VV_RB_MEDIA_RESOURCE_S resource;
+        VV_RB_MEDIA_FRAMED_S resource;
         rc = ringBufferReadFrom(mConsumerGettingAUDIO0, &resource);
         if (rc == 0) {
             static uint32_t lastSeqId = 0;
@@ -116,7 +116,7 @@ void RTSPD::addMediaSession1(std::string streamName, std::string description,
 
     ms.video.doGettingFramed = [&](RTSPD555_FRAMER_S *Frame) -> int {
         int rc = -1;
-        VV_RB_MEDIA_RESOURCE_S resource;
+        VV_RB_MEDIA_FRAMED_S resource;
         rc = ringBufferReadFrom(mConsumerGettingVIDEO1, &resource);
         if (rc == 0) {
             Frame->sample.clear();
