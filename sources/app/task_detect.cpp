@@ -552,7 +552,7 @@ void reportAlarmTriggerStatus() {
 		 }							 },
 	};
 
-	lockMutexListClients();
+	pthread_mutex_lock(&Client::mtxClientsProtect);
 	for (auto it : clients) {
 		auto dc = it.second->dataChannel.value();
 		try {
@@ -564,7 +564,7 @@ void reportAlarmTriggerStatus() {
 			APP_DBG_MD("%s\n", error.what());
 		}
 	}
-	unlockMutexListClients();
+	pthread_mutex_unlock(&Client::mtxClientsProtect);
 }
 
 void triggerSoundAlarm(bool bSound) {

@@ -387,7 +387,6 @@ rtc::binary MP4v2Reader::loadNextSamples_PpsIdr() {
 	/* Load PPS */
 	pps = readOneSample(true, NULL);
 	isPPS = (MP4v2NaluType(*((uint8_t*)pps.data() + 4), MP4V2_MP4_VIDEO_H264) == MP4V2_MP4_AVC_NAL_PPS) ? true : false;
-	printf("PPS size %d\r\n", pps.size());
 	if (pps.size() < 5 || !isPPS) {
 		return {};
 	}
@@ -395,7 +394,6 @@ rtc::binary MP4v2Reader::loadNextSamples_PpsIdr() {
 
 	/* Load -> IDR */
 	idr = readOneSample(true, NULL);
-	printf("IDR size %d\r\n", idr.size());
 	sample.insert(sample.end(), idr.begin(), idr.end());
 
 	return sample;

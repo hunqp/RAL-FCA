@@ -114,6 +114,7 @@ void task_init(const char *params) {
 	JOURNAL_LOGGER.filename = strdup(FCA_VENDORS_FILE_LOCATE("journal.log").c_str());
 	RUNTIME_LOGGER.maxBytesCanBeHold = (10 * 1024);
 
+	system("echo 3 > /proc/sys/vm/drop_caches");
 	system("echo 8192 > /proc/sys/vm/min_free_kbytes");
 
 	// fca_bluetooth_start(deviceSerialNumber.c_str(), vendorsHostapdSsid.c_str(), vendorsHostapdPssk.c_str());

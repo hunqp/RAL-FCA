@@ -3,6 +3,7 @@
 #include <string.h>
 #include <iostream>
 #include <fstream>
+#include <arpa/inet.h>
 
 #include "videosource.hpp"
 
@@ -32,7 +33,7 @@ void VideoSource::loadNextSample() {
 	rc = ringBufferReadFrom(consumer, &Frame);
 
 	if (rc == 0) {
-		sample.insert(sample.end(), reinterpret_cast<std::byte*>(Frame.pData), reinterpret_cast<std::byte*>(Frame.pData) + Frame.dataLen);
+		splitNalus(Frame.pData, Frame.dataLen);
 		sampleTime_us += (1000000 / Frame.framePerSeconds);
 
 		if (Frame.type == VV_RB_MEDIA_FRAME_HDR_TYPE_I) {
@@ -56,4 +57,31 @@ bool VideoSource::isSpsPpsIdrOrVpsSpsPpsIdr() {
 
 rtc::binary VideoSource::getInitialNalus() {
 	return mInitialNalus;
+}
+
+void VideoSource::appendSample(uint8_t *buffer, size_t length) {
+	uint32_t nalu_nlen = htonl((uint32_t)length);
+	sample.insert(sample.end(), reinterpret_cast<std::byte *>(&nalu_nlen), reinterpret_cast<std::byte *>(&nalu_nlen) + sizeof(nalu_nlen));
+	sample.insert(sample.end(), reinterpret_cast<std::byte *>(buffer), reinterpret_cast<std::byte *>(buffer) + length);
+}
+
+void VideoSource::splitNalus(uint8_t *buffer, size_t length) {
+	uint8_t *found = NULL;
+	uint8_t *begin = buffer;
+	size_t remain_length = length;
+	const uint8_t zero_sequence_4[4] = {0, 0, 0, 1};
+
+	found = (uint8_t *)memmem(begin, remain_length, zero_sequence_4, sizeof(zero_sequence_4));
+	while (found) {
+		int nalu_hlen = found - begin;
+		if (nalu_hlen) {
+			appendSample(begin, nalu_hlen);
+		}
+		begin = found + sizeof(zero_sequence_4);
+		remain_length -= (nalu_hlen + sizeof(zero_sequence_4));
+		found = (uint8_t *)memmem(begin, remain_length, zero_sequence_4, sizeof(zero_sequence_4));
+	}
+	if (remain_length) {
+		appendSample(begin, remain_length);
+	}
 }

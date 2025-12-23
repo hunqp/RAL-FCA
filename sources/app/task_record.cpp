@@ -350,7 +350,7 @@ void *isolateSafeFormatExtDisk(void *) {
 	};
 
 	try {
-		lockMutexListClients();
+		pthread_mutex_lock(&Client::mtxClientsProtect);
 		for (auto it : clients) {
 			auto dc = it.second->dataChannel.value();
 			try {
@@ -362,7 +362,7 @@ void *isolateSafeFormatExtDisk(void *) {
 				APP_DBG("%s\n", error.what());
 			}
 		}
-		unlockMutexListClients();
+		pthread_mutex_unlock(&Client::mtxClientsProtect);
 	}
 	catch (const std::exception& e) {
 		std::cout << e.what() << std::endl;

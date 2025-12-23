@@ -60,23 +60,19 @@ using json = nlohmann::json;
 q_msg_t gw_task_webrtc_mailbox;
 string camIpPublic = "";
 
-#ifdef TEST_USE_WEB_SOCKET
-shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, weak_ptr<WebSocket> wws, string id);
-#endif
-shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, string id);
+static shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, string id);
+static shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, weak_ptr<WebSocket> wws, string id);
 
+static void startStream();
 static shared_ptr<Stream> createStream(void);
 static void addToStream(shared_ptr<Client> client, bool isAddingVideo);
-static void startStream();
-static shared_ptr<ClientTrackData> addVideo(const shared_ptr<PeerConnection> pc, const uint8_t payloadType, const uint32_t ssrc, const string cname, const string msid,
-											const function<void(void)> onOpen);
-static shared_ptr<ClientTrackData> addAudio(const shared_ptr<PeerConnection> pc, const uint8_t payloadType, const uint32_t ssrc, const string cname, const string msid,
-											const function<void(void)> onOpen, string id);
+static shared_ptr<ClientTrackData> addVideo(const shared_ptr<PeerConnection> pc, const uint8_t payloadType, const uint32_t ssrc, const string cname, const string msid, const function<void(void)> onOpen);
+static shared_ptr<ClientTrackData> addAudio(const shared_ptr<PeerConnection> pc, const uint8_t payloadType, const uint32_t ssrc, const string cname, const string msid, const function<void(void)> onOpen, string id);
 
-static string wsUrl;
+static std::string wsUrl;
 static vector<char> aLawPeerBuffers;
 static Configuration rtcConfig;
-static void printAllClients();
+static void printListClients();
 static int8_t loadIceServersConfigFile(Configuration &rtcConfig);
 static int8_t cloudSetRtcServers(const string &serverType, const json &data);
 static int8_t cloudGetRtcServers(const string &serverType, json &data);
@@ -88,7 +84,9 @@ void *gw_task_webrtc_entry(void *) {
 
 	wait_all_tasks_started();
 
-	InitLogger(LogLevel::None);
+	APP_DBG("[STARTED] gw_task_webrtc_entry\n");
+
+	InitLogger(LogLevel::Error);
 	
 	if (fca_configGetP2P(&Client::maxClientSetting) != APP_CONFIG_SUCCESS) {
 		Client::maxClientSetting = CLIENT_MAX;
@@ -98,51 +96,32 @@ void *gw_task_webrtc_entry(void *) {
 	
 	timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_GET_STUN_EXTERNAL_IP_REQ, 3000, TIMER_ONE_SHOT);
 
-#ifdef TEST_USE_WEB_SOCKET
-	/* init websocket */
-	auto ws = make_shared<WebSocket>();	   // init poll serivce and threadpool = 4
-	ws->onOpen([]() {
-		APP_PRINT("WebSocket has connected, signaling ready\n");
-		timer_remove_attr(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ);
-#ifdef RELEASE
-		timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_REQ, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
-#endif
-	});
-
-	ws->onClosed([]() {
-		APP_PRINT("WebSocket has closed\n");
-		timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ, GW_WEBRTC_TRY_CONNECT_SOCKET_INTERVAL, TIMER_ONE_SHOT);
-	});
-
-	ws->onError([](const string &error) { 
-		APP_WARN("WebSocket failed: %s\n", error.c_str()); 
-	});
-
-	ws->onMessage([&](variant<binary, string> data) {
-		if (!holds_alternative<string>(data)) {
-			return;
-		}
-		string msg = get<string>(data);
-		APP_DBG_RTC("%s\n", msg.data());
-		task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_SIGNALING_SOCKET_REQ, (uint8_t *)msg.data(), msg.length() + 1);
-	});
-
-#ifndef RELEASE
-	/* For Debugging */
-	wsUrl = "ws://42.116.138.42:8089/" + fca_getSerialInfo();
-	APP_PRINT("wsURL: %s\n", wsUrl.data());
-#endif
-
+	std::shared_ptr<WebSocket> ws;
+	wsUrl = std::string("ws://42.116.138.42:8089/") + deviceSerialNumber;
 	if (!wsUrl.empty()) {
-		timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ, GW_WEBRTC_TRY_CONNECT_SOCKET_INTERVAL, TIMER_ONE_SHOT);
+		ws = make_shared<WebSocket>();
+		ws->onOpen([]() {
+			APP_PRINT("WebSocket has connected, signaling ready\n");
+			timer_remove_attr(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ);
+			// timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_REQ, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
+		});
+		ws->onClosed([]() {
+			APP_PRINT("WebSocket has closed\n");
+			task_post_pure_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ);
+		});
+		ws->onError([](const string &error) { 
+			APP_WARN("WebSocket errors: %s\n", error.c_str()); 
+		});
+		ws->onMessage([&](variant<binary, string> data) {
+			if (!holds_alternative<string>(data)) {
+				return;
+			}
+			std::string msg = get<std::string>(data);
+			task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_SIGNALING_OVER_WEBSOCKET_REQ, (uint8_t*)msg.data(), msg.length() + 1);
+		});
+		task_post_pure_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ);
 	}
-#else
-	rtc::Preload();
-#endif
 
-	APP_DBG_RTC("[STARTED] gw_task_webrtc_entry\n");
-
-	sleep(1);
 	avStream = createStream();
 	startListSocketListeners();
 
@@ -151,117 +130,56 @@ void *gw_task_webrtc_entry(void *) {
 		msg = ak_msg_rev(GW_TASK_WEBRTC_ID);
 
 		switch (msg->header->sig) {
-#ifdef TEST_USE_WEB_SOCKET
 		case GW_WEBRTC_TRY_CONNECT_SOCKET_REQ: {
 			APP_DBG_SIG("GW_WEBRTC_TRY_CONNECT_SOCKET_REQ\n");
 			timer_remove_attr(GW_TASK_WEBRTC_ID, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_REQ);
 			ws->close();
 			if (ws->isClosed() && !wsUrl.empty()) {
-				APP_DBG_RTC("try connect to websocket: %s\n", wsUrl.data());
+				APP_DBG("Try connect to websocket: %s\r\n", wsUrl.data());
 				ws->open(wsUrl);
 				timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_TRY_CONNECT_SOCKET_REQ, GW_WEBRTC_TRY_CONNECT_SOCKET_INTERVAL, TIMER_ONE_SHOT);
 			}
-		} break;
+		}
+		break;
 
-		case GW_WEBRTC_SIGNALING_SOCKET_REQ: {
-			APP_DBG_SIG("GW_WEBRTC_SIGNALING_SOCKET_REQ\n");
+		case GW_WEBRTC_SIGNALING_OVER_WEBSOCKET_REQ: {
+			APP_DBG_SIG("GW_WEBRTC_SIGNALING_OVER_WEBSOCKET_REQ\n");
 			try {
-				json message = json::parse(string((char *)msg->header->payload, msg->header->len));
-				APP_DBG_RTC("websocket rev msg: %s\n", message.dump().c_str());
+				nlohmann::json message = nlohmann::json::parse(string((char *)msg->header->payload, msg->header->len));
+				APP_DBG("Ws incomes: %s\n", message.dump().c_str());
 
 				auto it = message.find("ClientId");
-				if (it == message.end())
+				if (it == message.end()) {
 					break;
+				}
 				string id = it->get<string>();
 
 				it = message.find("Type");
-				if (it == message.end())
+				if (it == message.end()) {
 					break;
+				}
 				string type = it->get<string>();
 
-				if (auto jt = clients.find(id); jt != clients.end()) {
-					auto pc = jt->second->peerConnection;
-					if (jt->second->dataChannel.value()->isOpen()) {
-						APP_DBG_RTC("datachannel is openned\n");
-					}
-					else if (type == "answer") {
-						APP_DBG_RTC("rev answer\n");
-						auto sdp	= message["Sdp"].get<string>();
-						auto desRev = Description(sdp, type);
-						if (pc->remoteDescription().has_value()) {
-							if (desRev.iceUfrag().has_value() && desRev.icePwd().has_value()) {
-								if (desRev.iceUfrag().value() == pc->remoteDescription().value().iceUfrag().value() &&
-									desRev.icePwd().value() == pc->remoteDescription().value().icePwd().value()) {
-									auto remoteCandidates = desRev.extractCandidates();
-									for (const auto &candidate : remoteCandidates) {
-										APP_DBG_RTC("candidate: %s\n", candidate.candidate().c_str());
-										pc->addRemoteCandidate(candidate);
-									}
-								}
-								else {
-									APP_DBG_RTC("rev id: %s\n", id.c_str());
-									APP_DBG_RTC("rev frag: %s - local frag: %s\n", desRev.iceUfrag().value().c_str(), pc->remoteDescription().value().iceUfrag().value().c_str());
-									throw runtime_error("ice-ufag diff ufrag");
-								}
-							}
-							else {
-								APP_DBG_RTC("rev id: %s\n", id.c_str());
-								throw runtime_error("answer no ice-ufag");
-							}
-						}
-						else {
-							APP_DBG_RTC("add new sdp\n");
-							try {
-								pc->setRemoteDescription(desRev);
-								APP_DBG_RTC("new session des: %s\n", pc->remoteDescription().value().iceUfrag().value().c_str());
-							}
-							catch (const exception &error) {
-								APP_DBG_RTC("add remote des error: %s\n", error.what());
-								throw runtime_error("add remote des error");
-							}
-						}
-					}
-					else if (type == "candidate") {
-						APP_DBG_RTC("add remote candidate\n");
-						auto sdp = message["Candidate"].get<string>();
-						auto mid = message["Mid"].get<string>();
-						pc->addRemoteCandidate(Candidate(sdp, mid));
-					}
-				}
-				else if (clients.size() <= CLIENT_SIGNALING_MAX && type == "request") {
+				if (type == "request") {
 					pthread_mutex_lock(&Client::mtxClientsProtect);
-					if (Client::totalClientsConnectSuccess >= Client::maxClientSetting) {
-						APP_DBG_RTC("[WARN] total client max: %d\n", Client::totalClientsConnectSuccess);
-						pthread_mutex_unlock(&Client::mtxClientsProtect);
-						break;
-					}
+					clients.emplace(id, createPeerConnection(rtcConfig, make_weak_ptr(ws), id));
 					pthread_mutex_unlock(&Client::mtxClientsProtect);
-
-					timer_remove_attr(GW_TASK_WEBRTC_ID, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_REQ);
-					shared_ptr<Client> newCl = createPeerConnection(rtcConfig, make_weak_ptr(ws), id);
-					Client::isSignalingRunning.store(true);	   // camera create peer and collect candidate long time <= 3s
-					lockMutexListClients();
-					clients.emplace(id, newCl);
-					printAllClients();
-					auto cl = clients.at(id);
-					cl->startTimeoutConnect((int)Client::eCheckConnectType::Signaling, GW_WEBRTC_ERASE_CLIENT_NO_ANSWER_TIMEOUT_INTERVAL);
-					APP_DBG_RTC("start timeout connect\n");
-					unlockMutexListClients();
-					Client::isSignalingRunning.store(false);
-#ifdef RELEASE
-					timer_set(GW_TASK_WEBRTC_ID, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_REQ, GW_WEBRTC_CLOSE_SIGNALING_SOCKET_TIMEOUT_INTERVAL, TIMER_ONE_SHOT);
-#endif
 				}
-				else {
-					APP_DBG_RTC("socket nothing\n");
-					APP_DBG_RTC("total signaling: %d\n", clients.size());
+				else if (type == "answer") {
+					if (auto jt = clients.find(id); jt != clients.end()) {
+						auto pc = jt->second->peerConnection;
+						auto sdp = message["Sdp"].get<string>();
+						auto description = Description(sdp, type);
+						pc->setRemoteDescription(description);
+					}
 				}
 			}
-			catch (const exception &error) {
-				APP_DBG_RTC("socket signaling error: %s\n", error.what());
+			catch (const std::exception &e) {
+				APP_ERROR("%s\r\n", e.what());
 			}
-		} break;
-#endif
+		} 
+		break;
+// #endif
 
 		case GW_WEBRTC_SIGNALING_MQTT_REQ: {
 			APP_DBG_SIG("GW_WEBRTC_SIGNALING_MQTT_REQ\n");
@@ -340,16 +258,14 @@ void *gw_task_webrtc_entry(void *) {
 					pthread_mutex_unlock(&Client::mtxClientsProtect);
 
 					shared_ptr<Client> newCl = createPeerConnection(rtcConfig, id);
-					Client::isSignalingRunning.store(true);	   // camera create peer and collect candidate long time <= 3s
-					lockMutexListClients();
-					APP_DBG_RTC("release lockMutexListClients()\n");
+					pthread_mutex_lock(&Client::mtxClientsProtect);
+				
 					clients.emplace(id, newCl);
-					printAllClients();
+					printListClients();
 					auto cl = clients.at(id);
 					cl->startTimeoutConnect((int)Client::eCheckConnectType::Signaling, GW_WEBRTC_ERASE_CLIENT_NO_ANSWER_TIMEOUT_INTERVAL);
 					APP_DBG_RTC("start timeout connect\n");
-					unlockMutexListClients();
-					Client::isSignalingRunning.store(false);
+					pthread_mutex_unlock(&Client::mtxClientsProtect);
 				}
 				else {
 					APP_DBG_RTC("total signaling: %d\n", clients.size());
@@ -445,16 +361,22 @@ void *gw_task_webrtc_entry(void *) {
 
 		case GW_WEBRTC_ERASE_CLIENT_REQ: {
 			APP_DBG_SIG("GW_WEBRTC_ERASE_CLIENT_REQ\n");
-			string id((char *)msg->header->payload);
-			APP_DBG_RTC("clear client id: %s\n", id.c_str());
-			Client::isSignalingRunning.store(true);
-			lockMutexListClients();
-			clients.erase(id);
-			unlockMutexListClients();
-			Client::isSignalingRunning.store(false);
+			
+			std::string id((char *)msg->header->payload, msg->header->len);
+			
+			pthread_mutex_lock(&Client::mtxClientsProtect);
 
-			printAllClients();
-		} break;
+			auto it = clients.find(id);
+			if (it != clients.end()) {
+				clients.erase(id);
+				APP_PRINT("Erase client \'%s\'\r\n", id.c_str());
+			}
+
+			pthread_mutex_unlock(&Client::mtxClientsProtect);
+
+			printListClients();
+		}
+		break;
 
 		case GW_WEBRTC_DBG_IPC_SEND_MESSAGE_REQ: {
 			APP_DBG_SIG("GW_WEBRTC_DBG_IPC_SEND_MESSAGE_REQ\n");
@@ -462,7 +384,8 @@ void *gw_task_webrtc_entry(void *) {
 			string id(sendMsg->clientId);
 			string msg(sendMsg->msg);
 			sendMsgControlDataChannel(id, msg);
-		} break;
+		}
+		break;
 
 		case GW_WEBRTC_ON_MESSAGE_CONTROL_DATACHANNEL_REQ: {
 			APP_DBG_SIG("GW_WEBRTC_ON_MESSAGE_CONTROL_DATACHANNEL_REQ\n");
@@ -483,15 +406,15 @@ void *gw_task_webrtc_entry(void *) {
 
 		case GW_WEBRTC_WATCHDOG_PING_REQ: {
 			// APP_DBG_SIG("GW_WEBRTC_WATCHDOG_PING_REQ\n");
-#ifndef RELEASE
-			printAllClients();
-#endif
+
 			task_post_pure_msg(GW_TASK_WEBRTC_ID, GW_TASK_SYS_ID, GW_SYS_WATCH_DOG_PING_NEXT_TASK_RES);
 
-		} break;
+		}
+		break;
 
 		case GW_WEBRTC_RELEASE_CLIENT_PUSH_TO_TALK: {
 			APP_DBG_SIG("GW_WEBRTC_RELEASE_CLIENT_PUSH_TO_TALK\n");
+
 			pushToTalkThread.removePending();
 			aLawPeerBuffers.clear();
 			aLawPeerBuffers.shrink_to_fit();
@@ -504,7 +427,7 @@ void *gw_task_webrtc_entry(void *) {
 
 		case GW_WEBRTC_TRY_GET_STUN_EXTERNAL_IP_REQ: {
 			APP_DBG_SIG("GW_WEBRTC_TRY_GET_STUN_EXTERNAL_IP_REQ\n");
-			sysThread.dispatch([]() {
+			MainThread.dispatch([]() {
 				string ipPublic;
 				if (getPublicIpAddr(ipPublic) == 0 && !ipPublic.empty()) {
 					camIpPublic = ipPublic;
@@ -606,26 +529,23 @@ void *gw_task_webrtc_entry(void *) {
 
 // Create and setup a PeerConnection
 shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, string id) {
-	APP_DBG_RTC("call createPeerConnection()\n");
-	auto pc		= make_shared<PeerConnection>(rtcConfig);
+	auto pc	= make_shared<PeerConnection>(rtcConfig);
 	auto client = make_shared<Client>(pc);
 	client->setId(id);
 
 	pc->onStateChange([id](PeerConnection::State state) {
-		APP_DBG_RTC("State: %d\n", (int)state);
-		if (state == PeerConnection::State::Closed) {
-			// remove disconnected client
-			APP_DBG_RTC("call erase client from lib\n");
-			systemTimer.add(milliseconds(100),
-							[id](CppTime::timer_id) { task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_ERASE_CLIENT_REQ, (uint8_t *)id.c_str(), id.length() + 1); });
+		cout << "State: " << state << endl;
+		if (state == PeerConnection::State::Disconnected || state == PeerConnection::State::Failed || state == PeerConnection::State::Closed) {
+			MainThread.dispatch([id]() { 
+				task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_ERASE_CLIENT_REQ, (uint8_t *)id.c_str(), id.length()); 
+			});
 		}
 	});
 
 	pc->onGatheringStateChange([rtcConfig, wpc = make_weak_ptr(pc), id](PeerConnection::GatheringState state) {
-		APP_DBG_RTC("Gathering State: %d\n", (int)state);
+		APP_DBG("Gathering State: %d\n", (int)state);
 		if (state == PeerConnection::GatheringState::Complete) {
 			if (auto pc = wpc.lock()) {
-				/* get list ice servers */
 				vector<string> iceList;
 				for (const auto &ice : rtcConfig.iceServers) {
 					iceList.push_back(ice.hostname);
@@ -641,7 +561,7 @@ shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, string i
 		}
 	});
 
-	client->video = addVideo(pc, 102, 1, "VideoStream", "Stream", [id, wc = make_weak_ptr(client)]() {
+	client->video = addVideo(pc, 102, 1, "video-stream", "stream1", [id, wc = make_weak_ptr(client)]() {
 		if (auto c = wc.lock()) {
 			addToStream(c, true);
 		}
@@ -649,7 +569,7 @@ shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, string i
 	});
 
 	client->audio = addAudio(
-		pc, 8, 2, "AudioStream", "Stream",
+		pc, 8, 2, "audio-stream", "stream1",
 		[id, wc = make_weak_ptr(client)]() {
 			if (auto c = wc.lock()) {
 				addToStream(c, false);
@@ -669,7 +589,6 @@ shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, string i
 			pthread_mutex_lock(&Client::mtxClientsProtect);
 			if (Client::totalClientsConnectSuccess < Client::maxClientSetting) {
 				cl->removeTimeoutConnect();
-				cl->setIsSignalingOk(true);
 				Client::totalClientsConnectSuccess++;
 				APP_DBG_RTC("total client: %d\n", Client::totalClientsConnectSuccess);
 
@@ -729,33 +648,29 @@ shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, string i
 	return client;
 };
 
-#ifdef TEST_USE_WEB_SOCKET
 shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, weak_ptr<WebSocket> wws, string id) {
-	auto pc		= make_shared<PeerConnection>(rtcConfig);
+	auto pc	= make_shared<PeerConnection>(rtcConfig);
 	auto client = make_shared<Client>(pc);
 	client->setId(id);
 
-	pc->onStateChange([id](PeerConnection::State state) {
-		APP_DBG_RTC("State: %d\n", (int)state);
-		if (state == PeerConnection::State::Closed) {
-			// remove disconnected client
-			APP_DBG_RTC("call erase client from lib\n");
-			systemTimer.add(milliseconds(100),
-							[id](CppTime::timer_id) { task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_ERASE_CLIENT_REQ, (uint8_t *)id.c_str(), id.length() + 1); });
+	pc->onStateChange([wpc = make_weak_ptr(pc), id](PeerConnection::State state) {
+		cout << "State: " << state << endl;
+		if (state == PeerConnection::State::Disconnected || state == PeerConnection::State::Failed || state == PeerConnection::State::Closed) {
+			MainThread.dispatch([id]() { 
+				task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_ERASE_CLIENT_REQ, (uint8_t *)id.c_str(), id.length()); 
+			});
 		}
 	});
 
 	pc->onGatheringStateChange([wpc = make_weak_ptr(pc), id, wws](PeerConnection::GatheringState state) {
-		APP_DBG_RTC("Gathering State: %d\n", (int)state);
+		APP_DBG("Gathering State: %d\n", (int)state);
 		if (state == PeerConnection::GatheringState::Complete) {
 			if (auto pc = wpc.lock()) {
 				auto description = pc->localDescription();
-				json message	 = {
-					{"ClientId", id						   },
-					  {"Type",	   description->typeString()	},
-					   {"Sdp",	   string(description.value())}
-				   };
-				// Gathering complete, send answer
+				nlohmann::json message;
+				message["ClientId"] = id;
+				message["Type"] = description->typeString();
+				message["Sdp"] = string(description.value());
 				if (auto ws = wws.lock()) {
 					ws->send(message.dump());
 				}
@@ -763,44 +678,41 @@ shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, weak_ptr
 		}
 	});
 
-	client->video = addVideo(pc, 102, 1, "VideoStream", "Stream", [id, wc = make_weak_ptr(client)]() {
+	client->video = addVideo(pc, 102, 1, "video-stream", "stream1", [id, wc = make_weak_ptr(client)]() {
 		if (auto c = wc.lock()) {
 			addToStream(c, true);
 		}
-		APP_DBG_RTC("Video from %s opened\n", id.c_str());
+		APP_DBG("Video from %s opened\n", id.c_str());
 	});
 
 	client->audio = addAudio(
-		pc, 8, 2, "AudioStream", "Stream",
+		pc, 8, 2, "audio-stream", "stream1",
 		[id, wc = make_weak_ptr(client)]() {
 			if (auto c = wc.lock()) {
 				addToStream(c, false);
 			}
-			APP_DBG_RTC("Audio from %s opened\n", id.c_str());
+			APP_DBG("Audio from %s opened\n", id.c_str());
 		},
 		id);
 
 	auto dc = pc->createDataChannel("control");
-	dc->onOpen([id, wcl = make_weak_ptr(client)]() {
-		if (auto cl = wcl.lock()) {
+	dc->onOpen([id, wdc = make_weak_ptr(client)]() {
+		if (auto cl = wdc.lock()) {
 			auto dc = cl->dataChannel.value();
-			APP_DBG_RTC("open channel label: %s success\n", dc->label().c_str());
-			dc->send("Hello from " + fca_getSerialInfo());
-			APP_DBG_RTC("remove timeout connect\n");
+			dc->send("Hello from " + deviceSerialNumber);
 			
-			pthread_mutex_lock(&Client::mtxClientsProtect);
-			if (Client::totalClientsConnectSuccess < Client::maxClientSetting) {
-				cl->removeTimeoutConnect();
-				cl->setIsSignalingOk(true);
-				Client::totalClientsConnectSuccess++;
-				APP_DBG_RTC("total client: %d\n", Client::totalClientsConnectSuccess);
-			}
-			else {
-				task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_ERASE_CLIENT_REQ, (uint8_t *)id.c_str(), id.length() + 1);
-				pthread_mutex_unlock(&Client::mtxClientsProtect);
-				return;
-			}
-			pthread_mutex_unlock(&Client::mtxClientsProtect);
+			// pthread_mutex_lock(&Client::mtxClientsProtect);
+			// if (Client::totalClientsConnectSuccess < Client::maxClientSetting) {
+			// 	cl->removeTimeoutConnect();
+			// 	Client::totalClientsConnectSuccess++;
+			// 	APP_DBG_RTC("total client: %d\n", Client::totalClientsConnectSuccess);
+			// }
+			// else {
+			// 	task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_ERASE_CLIENT_REQ, (uint8_t *)id.c_str(), id.length() + 1);
+			// 	pthread_mutex_unlock(&Client::mtxClientsProtect);
+			// 	return;
+			// }
+			// pthread_mutex_unlock(&Client::mtxClientsProtect);
 
 			// auto pc = cl->peerConnection;
 			// Candidate iceCam, iceApp;
@@ -816,21 +728,14 @@ shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, weak_ptr
 		}
 	});
 
-	dc->onClosed([id, wdc = make_weak_ptr(dc)]() {
-		if (auto dc = wdc.lock()) {
-			APP_DBG_RTC("DataChannel label: %s from: %s closed\n", dc->label().c_str(), id.c_str());
-		}
-	});
-
 	dc->onMessage([id, wcl = make_weak_ptr(client)](auto data) {
 		// data holds either string or rtc::binary
 		if (holds_alternative<string>(data)) {
-			string str	 = get<string>(data);
-			json dataRev = {
-				{"ClientId", id },
-				  {"Data",	   str}
-			   };
-			task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_ON_MESSAGE_CONTROL_DATACHANNEL_REQ, (uint8_t *)dataRev.dump().c_str(), dataRev.dump().length() + 1);
+			nlohmann::json js;
+			std::string str = get<string>(data);
+			js["ClientId"] = id;
+			js["Data"] = str;
+			task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_ON_MESSAGE_CONTROL_DATACHANNEL_REQ, (uint8_t *)js.dump().c_str(), js.dump().length() + 1);
 		}
 		else {
 			APP_DBG_RTC("Binary message from %s received, size= %d\n", id.c_str(), get<rtc::binary>(data).size());
@@ -839,12 +744,11 @@ shared_ptr<Client> createPeerConnection(const Configuration &rtcConfig, weak_ptr
 	client->dataChannel = dc;
 	return client;
 };
-#endif
 
-void printAllClients() {
-	APP_DBG_RTC("******* List Clients ********\n");
+void printListClients() {
+	APP_PRINT("List clients connected\n");
 	for (const auto &pair : clients) {
-		APP_DBG_RTC("\tId: %s\n", pair.second->getId().c_str());
+		APP_PRINT("\t%s\n", pair.second->getId().c_str());
 	}
 }
 
@@ -1041,7 +945,7 @@ shared_ptr<ClientTrackData> addVideo(const shared_ptr<PeerConnection> pc, const 
 		// create RTP configuration
 		auto rtpConfig = make_shared<RtpPacketizationConfig>(ssrc, cname, payloadType, H264RtpPacketizer::ClockRate);
 		// create packetizer
-		auto packetizer = make_shared<H264RtpPacketizer>(NalUnit::Separator::LongStartSequence, rtpConfig);
+		auto packetizer = make_shared<H264RtpPacketizer>(NalUnit::Separator::Length, rtpConfig);
 		// add RTCP SR handler
 		auto srReporter = make_shared<RtcpSrReporter>(rtpConfig);
 		packetizer->addToChain(srReporter);
@@ -1062,7 +966,7 @@ shared_ptr<ClientTrackData> addVideo(const shared_ptr<PeerConnection> pc, const 
 		// create RTP configuration
 		auto rtpConfig = make_shared<RtpPacketizationConfig>(ssrc, cname, payloadType, H265RtpPacketizer::ClockRate);
 		// create packetizer
-		auto packetizer = make_shared<H265RtpPacketizer>(NalUnit::Separator::LongStartSequence, rtpConfig);
+		auto packetizer = make_shared<H265RtpPacketizer>(NalUnit::Separator::Length, rtpConfig);
 		// add RTCP SR handler
 		auto srReporter = make_shared<RtcpSrReporter>(rtpConfig);
 		packetizer->addToChain(srReporter);
@@ -1136,10 +1040,6 @@ shared_ptr<ClientTrackData> addAudio(const shared_ptr<PeerConnection> pc, const 
 }
 
 shared_ptr<Stream> createStream() {
-	// extern VideoCtrl videoCtrl;
-	// auto viEncodeSett = videoCtrl.videoEncodeConfig();
-	// auto video		  = make_shared<VideoSource>(viEncodeSett.mainStream.format.FPS);
-	/* TODO */
 	auto video0 = make_shared<VideoSource>(VideoHelpers::VIDEO0_PRODUCER, VIDEO_LIVESTREAM_SAMPLE_DURATION_US);
 	auto video1 = make_shared<VideoSource>(VideoHelpers::VIDEO1_PRODUCER, VIDEO_LIVESTREAM_SAMPLE_DURATION_US);
 	auto audio0 = make_shared<AudioSource>(AudioHelpers::AUDIO0_PRODUCER, AUDIO_LIVESTREAM_SAMPLE_DURATION_US);

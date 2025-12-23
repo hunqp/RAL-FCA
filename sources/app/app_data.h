@@ -221,7 +221,7 @@ typedef struct {
 
 extern std::string camIpPublic;
 extern GPIOHelpers gpiosHelpers;
-extern DispatchQueue sysThread;
+extern DispatchQueue MainThread;
 extern DispatchQueue voiceGuideThread;
 extern DispatchQueue pushToTalkThread;
 extern optional<shared_ptr<Stream>> avStream;
@@ -241,8 +241,6 @@ extern OfflineEventManager offlineEventManager;
 
 extern void sendMsgRespondProcess(const string &otaProcess);
 extern void sendMsgControlDataChannel(const string &id, const string &msg);
-extern void lockMutexListClients();
-extern void unlockMutexListClients();
 extern string fca_getSerialInfo();
 extern void genDefaultPasswordRtsp(string &user, string &pass);
 extern string getMqttConnectStatus();

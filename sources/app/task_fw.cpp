@@ -126,7 +126,7 @@ void *gw_task_fw_entry(void *) {
 
 		case GW_FW_DOWNLOAD_START_REQ: {
 			APP_DBG_SIG("GW_OTA_DOWNLOAD_START\n");
-			sysThread.dispatch([url, md5]() {
+			MainThread.dispatch([url, md5]() {
 				int ret = fca_otaDownloadFile(url, FIRMWARE_FILE, FIRMWARE_DOWNLOAD_TIMEOUT);
 				if (ret == FCA_OTA_OK) {
 					string crc = get_md5_file(FIRMWARE_FILE);

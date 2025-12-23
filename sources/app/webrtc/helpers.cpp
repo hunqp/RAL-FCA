@@ -24,14 +24,13 @@
 using namespace rtc;
 using namespace std::chrono;
 
-pthread_mutex_t Client::mtxClientsProtect	 = PTHREAD_MUTEX_INITIALIZER;
-std::atomic<bool> Client::isSignalingRunning(false);
-int Client::maxClientSetting				 = CLIENT_MAX;
+pthread_mutex_t Client::mtxClientsProtect = PTHREAD_MUTEX_INITIALIZER;
+int Client::maxClientSetting = CLIENT_MAX;
 int Client::totalClientsConnectSuccess		 = 0;
 AtomicString Client::currentClientPushToTalk("");
 
 Client::Client(std::shared_ptr<rtc::PeerConnection> pc) {
-	_peerConnection = pc;
+	mPeerConnection = pc;
 	mPOSIXMutex	= PTHREAD_MUTEX_INITIALIZER;
 	mDownloadMutex = PTHREAD_MUTEX_INITIALIZER;
 	mIsSignalingOk	= false;
@@ -39,25 +38,12 @@ Client::Client(std::shared_ptr<rtc::PeerConnection> pc) {
 	mPacketTimerId.store(-1);
 }
 
-Client::~Client() {
-	APP_DBG_RTC("~Client id: %s\n", mId.c_str());
-	
+Client::~Client() {	
 	setPlbSdControl(PB_CTL_STOP, 0);
-	removeTimeoutDownload();
-
-	pthread_mutex_destroy(&mPOSIXMutex);
-	pthread_mutex_destroy(&mDownloadMutex);
-	if (isSignalingOk()) {
-		pthread_mutex_lock(&mtxClientsProtect);
-		if (--Client::totalClientsConnectSuccess < 0) {
-			pthread_mutex_unlock(&mtxClientsProtect);
-			APP_DBG_RTC("Client::totalClientsConnectSuccess < 0\n");
-			FATAL("RTC", 0x02);
-		}
-		pthread_mutex_unlock(&mtxClientsProtect);
-		APP_DBG("total client: %d\n", Client::totalClientsConnectSuccess);
-	}
-	removeTimeoutConnect();
+	// removeTimeoutDownload();
+	// removeTimeoutConnect();
+	// pthread_mutex_destroy(&mPOSIXMutex);
+	// pthread_mutex_destroy(&mDownloadMutex);
 }
 
 void Client::setState(State mState) {
@@ -147,14 +133,6 @@ int32_t Client::getSessionId() {
 	return ret;
 }
 
-bool Client::isSignalingOk() {
-	return mIsSignalingOk;
-}
-
-void Client::setIsSignalingOk(bool value) {
-	mIsSignalingOk = value;
-}
-
 string Client::getId() {
 	return mId;
 }
@@ -204,7 +182,7 @@ void Client::startTimeoutDownload() {
 		}
 		if (mPacketTimerId.load() == (int)idT) {
 			mPacketTimerId.store(-1);
-			string id	   = getId();
+			string id = getId();
 			task_post_dynamic_msg(GW_TASK_WEBRTC_ID, GW_WEBRTC_DATACHANNEL_DOWNLOAD_RELEASE_REQ, (uint8_t *)id.c_str(), id.length() + 1);
 		}
 	}));
@@ -369,6 +347,7 @@ void *Client::hdlSendSdSourceToPeer(void *arg) {
 
 		auto [sampleTime, sst] = me->unsafePrepareForSample(videoTime.sampleTime_us, audioTime.sampleTime_us, startTime);
 		auto trackData = (sst == Stream::StreamSourceType::Video) ? me->video.value() : me->audio.value();
+
 		if (me->mPlbState != PB_STATE_PLAYING) {
 			if (sst == Stream::StreamSourceType::Video) {
 				videoTime.sampleTime_us += (videoTime.sampleDuration_us / me->mSpeedFactor);
@@ -408,11 +387,11 @@ void *Client::hdlSendSdSourceToPeer(void *arg) {
 				if (elapsedSecs != me->mMP4Auxs.elapsedSeconds()) {
 					elapsedSecs = me->mMP4Auxs.elapsedSeconds();
 					nlohmann::json js = {
-						{"Id"			,	fca_getSerialInfo()	},
+						{"Id"			,	deviceSerialNumber	},
 						{"Type"			,	"Report"			},
 						{"Command"		,	"Playback"			},
-						{"SessionId"	,	me->getSessionId()	},
-						{"SequenceId"	,	me->getSequenceId()	},
+						{"SessionId"	,	me->mSessionId		},
+						{"SequenceId"	,	me->mSequenceId		},
 						{"Content"	,	
 							{
 								{"SeekPos"	, elapsedSecs	},
@@ -422,15 +401,16 @@ void *Client::hdlSendSdSourceToPeer(void *arg) {
 					};
 					auto dc = me->dataChannel.value();
 					dc->send(js.dump());
-					printf("FPS: %d, elapsed seconds: %d\r\n", me->mMP4Auxs.framePerSeconds(), elapsedSecs);
+					APP_DBG("FPS: %d, elapsed seconds: %d\r\n", me->mMP4Auxs.framePerSeconds(), elapsedSecs);
 				}
 			}
-			
 			trackData->track->sendFrame(sample, std::chrono::duration<double, std::micro>(sampleTime));
 		}
-		catch (const std::exception& e) {
-			std::cout << e.what() << std::endl;
+		catch (...) {
+			
 		}
+		pthread_mutex_unlock(&me->mPOSIXMutex);
 	}
+
 	return NULL;
 }

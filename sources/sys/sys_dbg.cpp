@@ -13,7 +13,7 @@ int8_t g_sys_log_dbg_en = 0;
 
 void sys_dbg_fatal(const char *s, uint8_t c) {
 	printf("[SYS_UNIX] FATAL: %s \t 0x%02X\n", s, c);
-	LOG_FILE_FATAL("FATAL: %s \t 0x%02X\n", s, c);
+	FATAL(s, c);
 	exit(EXIT_FAILURE);
 }
 

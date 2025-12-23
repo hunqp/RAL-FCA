@@ -17,7 +17,7 @@
 
 GPIOHelpers gpiosHelpers;
 ClientsGroup_t clients;
-DispatchQueue sysThread("rtcHandler", 2);
+DispatchQueue MainThread("rtcHandler", 2);
 DispatchQueue voiceGuideThread("playVoiceHandler");
 DispatchQueue pushToTalkThread("push2TalkHdl");
 optional<shared_ptr<Stream>> avStream = nullopt;
@@ -26,25 +26,16 @@ CppTime::Timer systemTimer;
 
 std::string caSslPath;
 
-static pthread_mutex_t mtxListClients = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t logFileMtx	  = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t logFileMtx = PTHREAD_MUTEX_INITIALIZER;
 
 AudioHelpers audioHelpers;
 VideoHelpers videoHelpers;
-
-void lockMutexListClients() {
-	pthread_mutex_lock(&mtxListClients);
-}
-
-void unlockMutexListClients() {
-	pthread_mutex_unlock(&mtxListClients);
-}
 
 void sendMsgControlDataChannel(const string &id, const string &msg) {
 	if (msg.empty())
 		return;
 
-	lockMutexListClients();
+	pthread_mutex_lock(&Client::mtxClientsProtect);
 	if (auto jt = clients.find(id); jt != clients.end()) {
 		auto dc = jt->second->dataChannel.value();
 		APP_DBG("Send message to %s\n", id.c_str());
@@ -60,7 +51,7 @@ void sendMsgControlDataChannel(const string &id, const string &msg) {
 	else {
 		APP_DBG("%s not found\n", id.c_str());
 	}
-	unlockMutexListClients();
+	pthread_mutex_unlock(&Client::mtxClientsProtect);
 }
 
 std::string fca_getSerialInfo() {
@@ -72,7 +63,7 @@ void sendMsgRespondProcess(const string &otaProcess) {
 		return;
 	}
 
-	lockMutexListClients();
+	pthread_mutex_lock(&Client::mtxClientsProtect);
 	for (auto pair : clients) {
 		auto dc = pair.second->dataChannel.value();
 		APP_DBG("Send message to %s\n", pair.first.c_str());
@@ -85,7 +76,7 @@ void sendMsgRespondProcess(const string &otaProcess) {
 			APP_DBG("%s\n", error.what());
 		}
 	}
-	unlockMutexListClients();
+	pthread_mutex_unlock(&Client::mtxClientsProtect);
 }
 
 string genPassword(int len) {

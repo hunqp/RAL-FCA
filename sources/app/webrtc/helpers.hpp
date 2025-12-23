@@ -73,7 +73,7 @@ public:
 		Signaling
 	};
 
-	Client(std::shared_ptr<rtc::PeerConnection> pc);
+	 Client(std::shared_ptr<rtc::PeerConnection> pc);
 	~Client();
 
 	void setState(State state);
@@ -107,23 +107,17 @@ public:
 	void setSessionId(int32_t ses);
 	int32_t getSequenceId();
 	int32_t getSessionId();
-	bool isSignalingOk();
-	void setIsSignalingOk(bool value);
 
 	std::string getId();
 	void setId(const std::string &newId);
-	static void cleanup() {
-		pthread_mutex_destroy(&mtxClientsProtect);
-	}
 
 public:
-	const std::shared_ptr<rtc::PeerConnection> &peerConnection = _peerConnection;
+	const std::shared_ptr<rtc::PeerConnection> &peerConnection = mPeerConnection;
 	std::optional<std::shared_ptr<ClientTrackData>> video;
 	std::optional<std::shared_ptr<ClientTrackData>> audio;
 	std::optional<std::shared_ptr<rtc::DataChannel>> dataChannel;
 	std::vector<fileDownloadInfo_t> arrFilesDownload;
 
-	static std::atomic<bool> isSignalingRunning;
 	static int maxClientSetting;
 	static int totalClientsConnectSuccess;
 	static pthread_mutex_t mtxClientsProtect;
@@ -133,7 +127,7 @@ private:
 	pthread_mutex_t mPOSIXMutex, mDownloadMutex;
 	State mState = State::Waiting;
 	std::string mId;
-	std::shared_ptr<rtc::PeerConnection> _peerConnection;
+	std::shared_ptr<rtc::PeerConnection> mPeerConnection;
 
 	eOptions mOptions = eOptions::Idle;
 	eResolution mLiveResolution = eResolution::HD720p;

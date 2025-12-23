@@ -412,7 +412,7 @@ void *gw_task_sys_entry(void *) {
 
 		case GW_SYS_GET_CA_FILE_REQ: {
 			APP_DBG_SIG("GW_SYS_GET_CA_FILE_REQ\n");
-			sysThread.dispatch([]() {
+			MainThread.dispatch([]() {
 				json cfgJs;
 				string linkPath = FCA_DEFAULT_FILE_LOCATE(FCA_LINKS_FILE);
 				if (read_json_file(cfgJs, linkPath)) {

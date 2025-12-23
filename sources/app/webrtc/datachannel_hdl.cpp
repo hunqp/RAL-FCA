@@ -325,24 +325,18 @@ int rtcCntlPlaybackOfExtDisks(json &content, bool &respFlag) {
 
 	/*
 		{
-			"FileName": "2025-12-17T02.46.14.mp4",  
-			"SeekPos": 0,
-			"Speed": 0,
-			"Status": 0/1/2/3/4/5
-		},
+			"FileName": "2025-12-19T11.52.46.mp4",
+			"Status": 0,
+			"Params": 0
+		}
 	*/
 
 	try {
-		int wantedSpeedToPlay = 0;
-		int seekToAnotherSecs = 0;
-
+		int params = 0;
 		std::string filename = content["FileName"].get<std::string>();
 		PLAYBACK_CONTROL cntl = content["Status"].get<PLAYBACK_CONTROL>();
-		if (content.contains("SeekPos")) {
-			seekToAnotherSecs = content["SeekPos"].get<int>();
-		}
-		if (content.contains("Speed")) {
-			wantedSpeedToPlay = content["Speed"].get<int>();
+		if (content.contains("Params")) {
+			params = content["Params"].get<int>();
 		}
 
 		auto it = clients.find(qrId);
@@ -377,10 +371,7 @@ int rtcCntlPlaybackOfExtDisks(json &content, bool &respFlag) {
 
 		/* Client transition state */
 		qrClient->setMediaStreamOptions(opts);
-		if (cntl == PB_CTL_SPEED) {
-			qrClient->setPlbSdControl(PB_CTL_SPEED, wantedSpeedToPlay);
-		}
-		else qrClient->setPlbSdControl(cntl, seekToAnotherSecs);
+		qrClient->setPlbSdControl(cntl, params);
 	}
 	catch (const std::exception &e) {
 		APP_ERROR("%s", e.what());
